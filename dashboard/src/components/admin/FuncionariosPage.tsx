@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Check, X, User, Mail, Briefcase, Clock } from 'lucide-react';
+import { API_BASE_URL } from '../../config';
 
 interface Funcionario {
   id?: number;
@@ -31,7 +32,7 @@ export default function FuncionariosPage() {
   const fetchFuncionarios = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://caucasian-septum-syndrome.ngrok-free.dev/funcionarios', {
+      const response = await fetch(`${API_BASE_URL}/funcionarios`, {
         headers: {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true'
@@ -88,7 +89,7 @@ export default function FuncionariosPage() {
       if (!isLocalOnly) {
         try {
           if (editingId) {
-            const response = await fetch(`https://caucasian-septum-syndrome.ngrok-free.dev/funcionarios/${editingId}`, {
+            const response = await fetch(`${API_BASE_URL}/funcionarios/${editingId}`, {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
@@ -98,7 +99,7 @@ export default function FuncionariosPage() {
             });
             if (response.ok) success = true;
           } else {
-            const response = await fetch('https://caucasian-septum-syndrome.ngrok-free.dev/funcionarios', {
+            const response = await fetch(`${API_BASE_URL}/funcionarios`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -159,7 +160,7 @@ export default function FuncionariosPage() {
     try {
       let success = false;
       try {
-        const response = await fetch(`https://caucasian-septum-syndrome.ngrok-free.dev/funcionarios/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/funcionarios/${id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',

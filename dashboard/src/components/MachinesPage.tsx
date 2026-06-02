@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Check, X, Settings } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 interface Machine {
   id?: number;
@@ -28,7 +29,7 @@ export default function MachinesPage() {
   const fetchMachines = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://caucasian-septum-syndrome.ngrok-free.dev/maquinas', {
+      const response = await fetch(`${API_BASE_URL}/maquinas`, {
         headers: {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true'
@@ -81,7 +82,7 @@ export default function MachinesPage() {
         try {
           if (editingId) {
             // Atualizar máquina existente
-            const response = await fetch(`https://caucasian-septum-syndrome.ngrok-free.dev/maquinas/${editingId}`, {
+            const response = await fetch(`${API_BASE_URL}/maquinas/${editingId}`, {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
@@ -95,7 +96,7 @@ export default function MachinesPage() {
             }
           } else {
             // Criar nova máquina
-            const response = await fetch('https://caucasian-septum-syndrome.ngrok-free.dev/maquinas', {
+            const response = await fetch(`${API_BASE_URL}/maquinas`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -157,7 +158,7 @@ export default function MachinesPage() {
     try {
       let success = false;
       try {
-        const response = await fetch(`https://caucasian-septum-syndrome.ngrok-free.dev/maquinas/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/maquinas/${id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',

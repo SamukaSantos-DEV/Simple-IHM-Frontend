@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Check, X, Calendar, Wrench, User, FileText, Loader } from 'lucide-react';
+import { API_BASE_URL } from '../../config';
 
 interface MaintenanceTask {
   id?: number;
@@ -59,7 +60,7 @@ export default function MaintenancePage() {
 
   const fetchMachines = async () => {
     try {
-      const response = await fetch('https://caucasian-septum-syndrome.ngrok-free.dev/maquinas', {
+      const response = await fetch(`${API_BASE_URL}/maquinas`, {
         headers: {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true'
@@ -97,7 +98,7 @@ export default function MaintenancePage() {
 
   const fetchFuncionarios = async () => {
     try {
-      const response = await fetch('https://caucasian-septum-syndrome.ngrok-free.dev/funcionarios', {
+      const response = await fetch(`${API_BASE_URL}/funcionarios`, {
         headers: {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true'
@@ -136,7 +137,7 @@ export default function MaintenancePage() {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://caucasian-septum-syndrome.ngrok-free.dev/manutencoes', {
+      const response = await fetch(`${API_BASE_URL}/manutencoes`, {
         headers: {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true'
@@ -206,7 +207,7 @@ export default function MaintenancePage() {
               data_agendada: formData.data_agendada,
               tipo_manutencao: formData.tipo_manutencao
             };
-            const response = await fetch(`https://caucasian-septum-syndrome.ngrok-free.dev/manutencoes/${editingId}`, {
+            const response = await fetch(`${API_BASE_URL}/manutencoes/${editingId}`, {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
@@ -223,7 +224,7 @@ export default function MaintenancePage() {
               data_agendada: formData.data_agendada,
               tipo_manutencao: formData.tipo_manutencao
             };
-            const response = await fetch('https://caucasian-septum-syndrome.ngrok-free.dev/manutencoes', {
+            const response = await fetch(`${API_BASE_URL}/manutencoes`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -295,7 +296,7 @@ export default function MaintenancePage() {
     try {
       let success = false;
       try {
-        const response = await fetch(`https://caucasian-septum-syndrome.ngrok-free.dev/manutencoes/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/manutencoes/${id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
@@ -339,7 +340,7 @@ export default function MaintenancePage() {
 
       if (!isLocalOnly) {
         try {
-          const response = await fetch(`https://caucasian-septum-syndrome.ngrok-free.dev/manutencoes/${completingTaskId}/concluir`, {
+          const response = await fetch(`${API_BASE_URL}/manutencoes/${completingTaskId}/concluir`, {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',

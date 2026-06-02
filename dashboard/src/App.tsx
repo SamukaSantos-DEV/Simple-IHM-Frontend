@@ -8,8 +8,9 @@ import AdminLayout from './components/admin/AdminLayout';
 import MachinesPage from './components/MachinesPage';
 import MaintenancePage from './components/admin/MaintenancePage';
 import FuncionariosPage from './components/admin/FuncionariosPage';
+import { API_BASE_URL } from './config';
 
-const socket = io('https://caucasian-septum-syndrome.ngrok-free.dev');
+const socket = io(API_BASE_URL);
 
 interface MachineTelemetry {
   uptimeSeconds: number;
@@ -354,7 +355,7 @@ export default function App() {
     const fetchAllData = async () => {
       // 1. Carregar máquinas
       try {
-        const localResponse = await fetch('https://caucasian-septum-syndrome.ngrok-free.dev/maquinas', {
+        const localResponse = await fetch(`${API_BASE_URL}/maquinas`, {
           headers: {
             'Content-Type': 'application/json',
             'ngrok-skip-browser-warning': 'true'
@@ -404,7 +405,7 @@ export default function App() {
       const activeId = selectedMachineIdRef.current;
       if (activeId !== null) {
         try {
-          const ngrokResponse = await fetch(`https://caucasian-septum-syndrome.ngrok-free.dev/status-maquinas/${activeId}`, {
+          const ngrokResponse = await fetch(`${API_BASE_URL}/status-maquinas/${activeId}`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -526,7 +527,7 @@ export default function App() {
 
       // 2. Carregar manutenções preventivas
       try {
-        const maintenanceResponse = await fetch('https://caucasian-septum-syndrome.ngrok-free.dev/manutencoes', {
+        const maintenanceResponse = await fetch(`${API_BASE_URL}/manutencoes`, {
           headers: {
             'Content-Type': 'application/json',
             'ngrok-skip-browser-warning': 'true'
