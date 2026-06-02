@@ -10,7 +10,7 @@ import MaintenancePage from './components/admin/MaintenancePage';
 import FuncionariosPage from './components/admin/FuncionariosPage';
 import { API_BASE_URL } from './config';
 
-const socket = io(API_BASE_URL);
+const socket = io(API_BASE_URL, { autoConnect: false });
 
 interface MachineTelemetry {
   uptimeSeconds: number;
