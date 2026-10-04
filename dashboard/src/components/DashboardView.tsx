@@ -349,7 +349,6 @@ export default function DashboardView(props: DashboardViewProps) {
                       ? 'border-ios-green/30 bg-ios-green/10 text-ios-green'
                       : 'border-ios-red/30 bg-ios-red/10 text-ios-red'
                   }`}>
-                    <span className={`h-3 w-3 rounded-full ${status ? 'bg-ios-green' : 'bg-ios-red'} ${status ? 'animate-pulse' : ''}`} />
                     <span className="text-sm font-black tracking-widest">
                       SISTEMA {status ? 'ON' : 'OFF'}
                     </span>
