@@ -2,6 +2,8 @@
 
 @theme {
   --dark-mode: selector([data-theme="dark"]);
+  --font-sans: "Poppins", sans-serif;
+  --font-mono: "Poppins", sans-serif;
 
   --color-glass-light: rgba(255, 255, 255, 0.4);
   --color-glass-dark: rgba(255, 255, 255, 0.03);
@@ -38,10 +40,12 @@
     @apply transition-colors duration-700;
     background-color: var(--aurora-bg);
     scroll-behavior: smooth;
+    font-family: "Poppins", sans-serif;
   }
 
   body {
     @apply antialiased min-h-screen overflow-x-hidden;
+    font-family: "Poppins", sans-serif;
     color: var(--text-primary);
     background: transparent !important;
   }
@@ -165,41 +169,6 @@
     max-width: 100px;
   }
 
-  /* BOTÃO ON/OFF HORIZONTAL */
-  .power-toggle {
-    @apply relative w-48 h-20 rounded-full transition-all duration-500 cursor-pointer flex items-center justify-between px-6 shadow-inner;
-    background: rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-  }
-
-  [data-theme="dark"] .power-toggle {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
-  }
-
-  .power-switch {
-    @apply absolute w-16 h-16 rounded-full transition-all duration-500 flex items-center justify-center shadow-xl;
-    background: #ffffff;
-    left: 8px;
-    z-index: 10;
-  }
-
-  .power-toggle.active .power-switch {
-    left: calc(100% - 72px);
-    @apply bg-ios-green shadow-[0_0_30px_rgba(52,199,89,0.5)];
-  }
-
-  .power-toggle.inactive .power-switch {
-    left: 8px;
-    @apply bg-ios-red shadow-[0_0_30px_rgba(255,59,48,0.5)];
-  }
-
-  .toggle-label {
-    @apply text-[10px] font-black uppercase tracking-widest opacity-30 select-none transition-opacity duration-300;
-  }
-
-  .power-toggle.active .label-off { opacity: 0.1; }
-  .power-toggle.inactive .label-on { opacity: 0.1; }
 }
 
 /* CUSTOM CLEAN SCROLLBAR */
@@ -228,4 +197,3 @@
 [data-theme="dark"] .scrollbar-clean::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
-

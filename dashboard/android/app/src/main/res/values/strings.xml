@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Simple IHM</string>
+    <string name="title_activity_main">Simple IHM</string>
+    <string name="package_name">com.simpleihm.app</string>
+    <string name="custom_url_scheme">com.simpleihm.app</string>
+</resources>

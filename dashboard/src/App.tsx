@@ -94,29 +94,6 @@ export default function App() {
     }
   };
 
-  const setStatus = (newStatus: boolean) => {
-    setStatusState(newStatus);
-    const currentId = selectedMachineIdRef.current;
-    if (currentId !== null && telemetryMap[currentId]) {
-      setTelemetryMap(prev => {
-        const item = prev[currentId];
-        const stopsDiff = (!newStatus && item.status) ? 1 : 0; // se desligou, incrementa parada
-        return {
-          ...prev,
-          [currentId]: {
-            ...item,
-            status: newStatus,
-            stopsCount: item.stopsCount + stopsDiff,
-            current: newStatus ? (item.current > 0.5 ? item.current : 2.5) : 0.1,
-            power: newStatus ? (item.power > 50 ? item.power : 550) : 22,
-            vibrationHz: newStatus ? 60 : 0,
-            vibrationStructural: newStatus ? 1.2 : 0.05,
-          }
-        };
-      });
-    }
-  };
-
   const formatTime = (totalSeconds: number): string => {
     const hrs = Math.floor(totalSeconds / 3600);
     const mins = Math.floor((totalSeconds % 3600) / 60);
@@ -670,7 +647,6 @@ export default function App() {
                 darkMode={darkMode}
                 setDarkMode={setDarkMode}
                 status={status}
-                setStatus={setStatus}
                 isSocketConnected={isSocketConnected}
                 isServerSignal={isServerSignal}
                 uptime={uptime}

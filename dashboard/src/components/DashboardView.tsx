@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Power, Clock, Zap, Sun, Moon, Filter,
+  Clock, Zap, Sun, Moon, Filter,
   Activity as ActivityIcon, ChevronDown, Check, BarChart3,
   TrendingUp, AlertTriangle, ShieldCheck, Wrench, ShieldAlert,
   ListFilter
@@ -21,7 +21,6 @@ interface DashboardViewProps {
   darkMode: boolean;
   setDarkMode: (val: boolean) => void;
   status: boolean;
-  setStatus: (val: boolean) => void;
   isSocketConnected: boolean;
   isServerSignal: boolean;
   uptime: string;
@@ -48,7 +47,7 @@ interface DashboardViewProps {
 export default function DashboardView(props: DashboardViewProps) {
   const {
     darkMode, setDarkMode,
-    status, setStatus,
+    status,
     isSocketConnected, isServerSignal,
     uptime, downtime, power, voltage, current,
     vibrationHz, vibrationStructural,
@@ -341,24 +340,19 @@ export default function DashboardView(props: DashboardViewProps) {
             {/* TELEMETRY DETAILS & CHARTS */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
 
-              {/* Left Column: Big Toggle & Core Status */}
+              {/* Left Column: System Status */}
               <div className="md:col-span-3 flex flex-col items-center gap-8">
                 <div className="flex flex-col items-center gap-2">
-                  <p className="text-xs font-black uppercase tracking-widest opacity-35">Controle de Energia</p>
-                  <div
-                    onClick={() => setStatus(!status)}
-                    className={`power-toggle ${status ? 'active' : 'inactive'}`}
-                  >
-                    <span className="toggle-label label-off">OFF</span>
-                    <div className="power-switch">
-                      <Power size={24} className="text-white" />
-                    </div>
-                    <span className="toggle-label label-on">ON</span>
-                  </div>
-                  <div className="text-center mt-2">
-                    <p className={`text-sm font-black tracking-widest transition-colors ${status ? 'text-ios-green' : 'text-ios-red'}`}>
+                  <p className="text-xs font-black uppercase tracking-widest opacity-35">Status do Sistema</p>
+                  <div className={`flex items-center gap-3 rounded-full border px-6 py-4 ${
+                    status
+                      ? 'border-ios-green/30 bg-ios-green/10 text-ios-green'
+                      : 'border-ios-red/30 bg-ios-red/10 text-ios-red'
+                  }`}>
+                    <span className={`h-3 w-3 rounded-full ${status ? 'bg-ios-green' : 'bg-ios-red'} ${status ? 'animate-pulse' : ''}`} />
+                    <span className="text-sm font-black tracking-widest">
                       SISTEMA {status ? 'ON' : 'OFF'}
-                    </p>
+                    </span>
                   </div>
                 </div>
 
