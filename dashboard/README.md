@@ -10,4 +10,6 @@ Aplicação web em React, TypeScript e Vite, também preparada para rodar como a
 4. Abra o projeto com `npm run android:open` ou abra a pasta `dashboard/android` no Android Studio.
 5. Conecte o celular com a depuração USB habilitada (ou inicie um emulador) e pressione **Run** no Android Studio.
 
+No Android Studio, configure **Settings > Build, Execution, Deployment > Build Tools > Gradle > Gradle JDK** para usar o JDK 21.
+
 O app usa a API publicada configurada em `src/config.ts`. O celular precisa de acesso à internet para receber dados do servidor.
