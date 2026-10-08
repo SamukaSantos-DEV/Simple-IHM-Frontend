@@ -22,7 +22,6 @@ interface DashboardViewProps {
   setDarkMode: (val: boolean) => void;
   status: boolean;
   isSocketConnected: boolean;
-  isServerSignal: boolean;
   uptime: string;
   downtime: string;
   power: number;
@@ -48,7 +47,7 @@ export default function DashboardView(props: DashboardViewProps) {
   const {
     darkMode, setDarkMode,
     status,
-    isSocketConnected, isServerSignal,
+    isSocketConnected,
     uptime, downtime, power, voltage, current,
     vibrationHz, vibrationStructural,
     vibrationData, liveValueData, historyData, dailyUptimeData,
@@ -205,37 +204,38 @@ export default function DashboardView(props: DashboardViewProps) {
       <div className="scroll-reveal-mask" />
 
       {/* Header */}
-      <header className="flex justify-between items-center mb-8 max-w-7xl mx-auto">
-        <div className="flex items-center gap-6">
+      <header className="mx-auto mb-6 flex max-w-7xl flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-6">
           <div className="relative group">
             <img
               src={logo}
               alt="Logo"
-              className={`w-14 h-14 object-contain transition-all duration-700 ${darkMode ? 'brightness-125 contrast-125 drop-shadow-[0_0_15px_rgba(129,47,255,0.6)]' : 'brightness-100'}`}
+              className={`h-10 w-10 shrink-0 object-contain transition-all duration-700 sm:h-14 sm:w-14 ${darkMode ? 'brightness-125 contrast-125 drop-shadow-[0_0_15px_rgba(129,47,255,0.6)]' : 'brightness-100'}`}
             />
             <div className="absolute inset-0 bg-ios-blue/30 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
-          <div className="flex flex-col">
-            <h1 className="text-3xl font-black tracking-tighter leading-none ">
+          <div className="flex min-w-0 flex-col">
+            <h1 className="whitespace-nowrap text-2xl font-black tracking-tighter leading-none sm:text-3xl">
               Simple <span className="bg-clip-text text-transparent italic pr-1" style={{ backgroundImage: BRAND_GRADIENT }}>IHM</span>
             </h1>
-            <p className="text-[10px] uppercase tracking-[0.2em] opacity-40 mt-1 font-bold">Industrial Control System</p>
+            <p className="mt-1 hidden whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.14em] opacity-50 sm:block sm:text-[10px] sm:tracking-[0.2em]">Industrial Control System</p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <StatusIndicator isConnected={isSocketConnected} isServerSignal={isServerSignal} />
+        <div className="flex w-full min-w-0 items-center justify-between gap-2 md:w-auto md:justify-end md:gap-4">
+          <StatusIndicator isConnected={isSocketConnected} />
 
           {availableMachines && availableMachines.length > 0 && setSelectedMachineId && (
             <div className="relative">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-4 py-2 text-sm font-bold outline-none hover:bg-black/10 dark:hover:bg-white/10 transition-all cursor-pointer backdrop-blur-md text-slate-500 whitespace-nowrap shrink-0"
+                className="flex min-w-0 max-w-[calc(100vw-7rem)] shrink items-center gap-2 whitespace-nowrap rounded-xl border border-white/60 bg-white/40 px-3 py-2 text-sm font-bold text-slate-900 shadow-sm backdrop-blur-xl outline-none transition-all hover:bg-white/55 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 sm:max-w-none sm:px-4"
+                style={{ color: darkMode ? '#ffffff' : '#000000' }}
               >
-                <span className="hidden md:inline">
-                  {availableMachines.find(m => m.id.toString() === selectedMachineId?.toString())?.name || 'Selecione a Máquina'}
+                <span className="hidden max-w-56 truncate md:inline">
+                  {availableMachines.find(m => m.id.toString() === selectedMachineId?.toString())?.name || 'Selecione o dispositivo'}
                 </span>
-                <span className="inline md:hidden">
-                  {availableMachines.find(m => m.id.toString() === selectedMachineId?.toString())?.tag || availableMachines.find(m => m.id.toString() === selectedMachineId?.toString())?.name || 'Máquina'}
+                <span className="max-w-40 truncate md:hidden">
+                  {availableMachines.find(m => m.id.toString() === selectedMachineId?.toString())?.tag || availableMachines.find(m => m.id.toString() === selectedMachineId?.toString())?.name || 'Dispositivo'}
                 </span>
                 <ChevronDown size={16} className={`transition-transform duration-300 shrink-0 ${isDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -243,7 +243,7 @@ export default function DashboardView(props: DashboardViewProps) {
               {isDropdownOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-56 bg-white/95 dark:bg-[#1a1a2e]/95 border border-black/10 dark:border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 backdrop-blur-xl transform origin-top-right transition-all animate-in fade-in zoom-in-95 duration-200">
+                  <div className="absolute left-0 right-auto z-50 mt-2 w-56 max-w-[calc(100vw-3rem)] origin-top-left transform overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl transition-all animate-in fade-in zoom-in-95 duration-200 dark:border-white/10 dark:bg-slate-900 sm:left-auto sm:right-0 sm:max-w-none sm:origin-top-right">
                     <div className="p-1.5 flex flex-col gap-1">
                       {availableMachines.map(m => (
                         <button
@@ -255,7 +255,7 @@ export default function DashboardView(props: DashboardViewProps) {
                           className={`w-full flex items-center justify-between text-left px-3 py-2.5 text-xs rounded-lg transition-all duration-200 cursor-pointer gap-2
                             ${selectedMachineId?.toString() === m.id.toString()
                               ? 'bg-ios-blue text-white font-bold shadow-md shadow-ios-blue/20'
-                              : 'text-slate-700 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 font-bold'
+                              : 'bg-white text-slate-900 hover:bg-slate-100 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800 font-bold'
                             }`}
                         >
                           <span className="hidden md:inline truncate">{m.name}</span>
@@ -272,7 +272,7 @@ export default function DashboardView(props: DashboardViewProps) {
 
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="theme-btn"
+            className="theme-btn shrink-0"
           >
             {darkMode ? <Sun size={24} className="text-yellow-400" /> : <Moon size={24} className="text-slate-600" />}
             <span className="theme-btn-text">{darkMode ? 'Dark' : 'Light'}</span>
@@ -281,26 +281,27 @@ export default function DashboardView(props: DashboardViewProps) {
       </header>
 
       {/* Tabs Navigation (Horizontal) */}
-      <div className="flex justify-center mb-12 max-w-7xl mx-auto w-full">
-        <div className={`flex p-1.5 rounded-2xl border backdrop-blur-md shadow-lg gap-2 overflow-hidden ${darkMode
+      <div className="mx-auto mb-8 w-full max-w-7xl sm:mb-12">
+        <div className={`mx-auto flex w-full gap-1 rounded-2xl border p-1.5 shadow-lg backdrop-blur-md sm:w-fit sm:gap-2 ${darkMode
           ? 'bg-black/10 border-white/5 shadow-black/40'
           : 'bg-white/80 border-black/10 shadow-black/5'
           }`}>
           <button
             onClick={() => setActiveTab('monitoring')}
-            className={`px-6 py-3 rounded-xl text-xs md:text-sm font-bold tracking-tight transition-all duration-300 cursor-pointer flex items-center gap-2 border
+            className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-xl border px-1 py-2.5 text-[9px] font-bold leading-none tracking-tight transition-all duration-300 sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-xs lg:px-6 lg:text-sm
               ${activeTab === 'monitoring'
                 ? 'bg-gradient-to-r from-[#2B0A5C] to-[#063A63] text-white shadow-lg shadow-purple-900/10 border-black/50' : darkMode
                   ? 'bg-white/5 border-white/5 hover:bg-white/15 text-slate-200'
                   : 'bg-black/5 border-black/5 hover:bg-black/10 text-slate-800'
               }`}
           >
-            <TrendingUp size={16} />
-            Monitoramento
+            <TrendingUp size={14} className="shrink-0 sm:size-4" />
+            <span className="sm:hidden">Monitorar</span>
+            <span className="hidden sm:inline">Monitoramento</span>
           </button>
           <button
             onClick={() => setActiveTab('reports')}
-            className={`px-6 py-3 rounded-xl text-xs md:text-sm font-bold tracking-tight transition-all duration-300 cursor-pointer flex items-center gap-2 border
+            className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-xl border px-1 py-2.5 text-[9px] font-bold leading-none tracking-tight transition-all duration-300 sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-xs lg:px-6 lg:text-sm
               ${activeTab === 'reports'
                 ? 'bg-gradient-to-r from-[#2B0A5C] to-[#063A63] text-white shadow-lg shadow-purple-900/10 border-black/50'
                 : darkMode
@@ -308,12 +309,13 @@ export default function DashboardView(props: DashboardViewProps) {
                   : 'bg-black/5 border-black/5 hover:bg-black/10 text-slate-800'
               }`}
           >
-            <BarChart3 size={16} />
-            Relatórios & Rankings
+            <BarChart3 size={14} className="shrink-0 sm:size-4" />
+            <span className="sm:hidden">Relatórios</span>
+            <span className="hidden sm:inline">Relatórios &amp; Rankings</span>
           </button>
           <button
             onClick={() => setActiveTab('maintenance')}
-            className={`px-6 py-3 rounded-xl text-xs md:text-sm font-bold tracking-tight transition-all duration-300 cursor-pointer flex items-center gap-2 relative border
+            className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-xl border px-1 py-2.5 text-[9px] font-bold leading-none tracking-tight transition-all duration-300 sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-xs lg:px-6 lg:text-sm
               ${activeTab === 'maintenance'
                 ? 'bg-gradient-to-r from-[#2B0A5C] to-[#063A63] text-white shadow-lg shadow-purple-900/10 border-black/50'
                 : darkMode
@@ -321,8 +323,9 @@ export default function DashboardView(props: DashboardViewProps) {
                   : 'bg-black/5 border-black/5 hover:bg-black/10 text-slate-800'
               }`}
           >
-            <Wrench size={16} />
-            Manutenção Preventiva
+            <Wrench size={14} className="shrink-0 sm:size-4" />
+            <span className="sm:hidden">Manut.</span>
+            <span className="hidden sm:inline">Manutenção Preventiva</span>
             {overdueCount > 0 && (
               <span className="w-2.5 h-2.5 bg-ios-red rounded-full shadow-md shadow-ios-red/50 animate-pulse" />
             )}
@@ -341,18 +344,14 @@ export default function DashboardView(props: DashboardViewProps) {
             <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
 
               {/* Left Column: System Status */}
-              <div className="md:col-span-3 flex flex-col items-center gap-8">
-                <div className="flex flex-col items-center gap-2">
-                  <p className="text-xs font-black uppercase tracking-widest opacity-35">Status do Sistema</p>
-                  <div className={`flex items-center gap-3 rounded-full border px-6 py-4 ${
-                    status
-                      ? 'border-ios-green/30 bg-ios-green/10 text-ios-green'
-                      : 'border-ios-red/30 bg-ios-red/10 text-ios-red'
-                  }`}>
-                    <span className="text-sm font-black tracking-widest">
-                      SISTEMA {status ? 'ON' : 'OFF'}
-                    </span>
-                  </div>
+              <div className="flex flex-col items-center gap-8 md:col-span-3">
+                <div
+                  role="status"
+                  className={`text-base font-extrabold tracking-wide sm:text-sm ${
+                    status ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
+                  }`}
+                >
+                  SISTEMA {status ? 'ON' : 'OFF'}
                 </div>
 
                 <div className="w-full flex flex-col gap-4">
@@ -376,7 +375,7 @@ export default function DashboardView(props: DashboardViewProps) {
                   </div>
 
                   <div className="seamless-panel rounded-ios p-6">
-                    <div className="flex items-center gap-3 opacity-60 mb-2">
+                    <div className="flex items-center gap-3 mb-2 text-slate-700 dark:text-slate-300">
                       <Filter size={16} />
                       <span className="text-xs font-bold uppercase tracking-wider">Filtro de Data</span>
                     </div>
@@ -384,7 +383,8 @@ export default function DashboardView(props: DashboardViewProps) {
                       type="date"
                       value={dateFilter}
                       onChange={(e) => setDateFilter(e.target.value)}
-                      className="w-full bg-black/5 dark:bg-white/5 border-none rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-1 ring-ios-blue/30 transition-all text-slate-800 dark:text-white"
+                      className="date-filter-input w-full rounded-xl border border-white/60 bg-white/40 px-4 py-2.5 text-sm font-medium text-slate-900 shadow-sm backdrop-blur-xl outline-none transition-all focus:ring-2 focus:ring-ios-blue/50 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                      style={{ colorScheme: darkMode ? 'dark' : 'light' }}
                     />
                   </div>
 

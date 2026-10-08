@@ -648,7 +648,6 @@ export default function App() {
                 setDarkMode={setDarkMode}
                 status={status}
                 isSocketConnected={isSocketConnected}
-                isServerSignal={isServerSignal}
                 uptime={uptime}
                 downtime={downtime}
                 power={power}
