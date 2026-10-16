@@ -3,7 +3,7 @@ import {
   Clock, Zap, Sun, Moon, Filter,
   Activity as ActivityIcon, ChevronDown, Check, BarChart3,
   TrendingUp, AlertTriangle, ShieldCheck, Wrench, ShieldAlert,
-  ListFilter
+  ListFilter, LogOut
 } from 'lucide-react';
 import VibrationChart from './VibrationChart';
 import HistoryChart from './HistoryChart';
@@ -14,6 +14,7 @@ import Grainient from './Grainient';
 import logo from '../assets/hero.png';
 import { useNavigate } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
+import { useAuth } from '../auth/useAuth';
 
 const BRAND_GRADIENT = 'linear-gradient(135deg, #812FFF 0%, #5CE1E6 100%)';
 
@@ -57,6 +58,7 @@ export default function DashboardView(props: DashboardViewProps) {
   } = props;
 
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'monitoring' | 'reports' | 'maintenance'>('monitoring');
@@ -277,6 +279,21 @@ export default function DashboardView(props: DashboardViewProps) {
             {darkMode ? <Sun size={24} className="text-yellow-400" /> : <Moon size={24} className="text-slate-600" />}
             <span className="theme-btn-text">{darkMode ? 'Dark' : 'Light'}</span>
           </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="hidden max-w-32 truncate text-xs font-semibold opacity-70 lg:block">{user?.nome}</span>
+            <button
+              type="button"
+              onClick={() => {
+                logout();
+                navigate('/login', { replace: true });
+              }}
+              aria-label="Sair da plataforma"
+              title="Sair"
+              className="rounded-xl border border-black/10 p-2 opacity-70 transition-opacity hover:opacity-100 dark:border-white/10"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -697,10 +714,10 @@ export default function DashboardView(props: DashboardViewProps) {
                   </p>
                 </div>
                 <button
-                  onClick={() => navigate('/admin/login')}
+                  onClick={() => navigate('/admin/machines')}
                   className="w-full text-center py-2.5 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 rounded-xl border border-black/10 dark:border-white/10 text-xs font-bold transition-all cursor-pointer"
                 >
-                  Ir para Painel do Técnico
+                  Ir para Painel de Gestão
                 </button>
               </div>
             </div>
@@ -766,7 +783,7 @@ export default function DashboardView(props: DashboardViewProps) {
       {/* Footer */}
       <footer className="mt-12 text-center text-xs opacity-35 max-w-7xl mx-auto w-full">
         <p>Simple IHM Dashboard &copy; 2026 - Conexão via Bridge Local</p>
-        <button onClick={() => navigate('/admin')} className="underline hover:opacity-100 transition-opacity cursor-pointer mb-16">Acesso Administrativo (Técnico)</button>
+        <button onClick={() => navigate('/admin')} className="underline hover:opacity-100 transition-opacity cursor-pointer mb-16">Painel de Gestão</button>
       </footer>
     </div>
   );

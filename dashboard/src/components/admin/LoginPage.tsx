@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Lock, User } from 'lucide-react';
 import logo from '../../assets/hero.png';
 import { API_BASE_URL } from '../../config';
+import { useAuth } from '../../auth/useAuth';
+import { isUserProfile } from '../../auth/session';
 
 const BRAND_GRADIENT = 'linear-gradient(135deg, #812FFF 0%, #5CE1E6 100%)';
 
@@ -11,6 +13,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { user, login } = useAuth();
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -30,69 +33,51 @@ export default function LoginPage() {
         })
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result && result.status === 'Sucesso') {
-          // Login bem-sucedido
-          sessionStorage.setItem('admin_auth_token', `token_${result.usuario_id}`);
-          sessionStorage.setItem('admin_user_name', result.nome);
-          sessionStorage.setItem('admin_user_email', username.trim());
-          navigate('/admin/machines');
-        } else {
-          setError(result?.mensagem || 'Falha ao autenticar. E-mail ou senha incorretos.');
-        }
-      } else {
-        if (response.status === 401 || response.status === 400 || response.status === 404) {
-          setError('E-mail ou senha incorretos.');
-        } else {
-          // Fallback local caso a API não responda ok
-          const local = localStorage.getItem('local_funcionarios');
-          if (local) {
-            const list = JSON.parse(local);
-            const user = list.find((f: any) => f.email?.toLowerCase().trim() === username.toLowerCase().trim());
-            if (user) {
-              if (user.ativo === false) {
-                setError('Funcionário inativo no sistema.');
-                setLoading(false);
-                return;
-              }
-              sessionStorage.setItem('admin_auth_token', `token_${user.id}`);
-              sessionStorage.setItem('admin_user_name', user.nome);
-              sessionStorage.setItem('admin_user_email', user.email);
-              navigate('/admin/machines');
-              setLoading(false);
-              return;
-            }
-          }
-          setError('Erro ao validar login com a API.');
-        }
+      if (!response.ok) {
+        setError(response.status === 401
+          ? 'E-mail ou senha incorretos.'
+          : 'Não foi possível validar o acesso. Tente novamente.');
+        return;
       }
+
+      const result: unknown = await response.json();
+      if (
+        typeof result !== 'object' ||
+        result === null ||
+        !('access_token' in result) ||
+        typeof result.access_token !== 'string' ||
+        !('usuario' in result) ||
+        typeof result.usuario !== 'object' ||
+        result.usuario === null ||
+        !('id' in result.usuario) ||
+        typeof result.usuario.id !== 'number' ||
+        !('nome' in result.usuario) ||
+        typeof result.usuario.nome !== 'string' ||
+        !('email' in result.usuario) ||
+        typeof result.usuario.email !== 'string' ||
+        !('perfil' in result.usuario) ||
+        !isUserProfile(result.usuario.perfil)
+      ) {
+        setError('A resposta de autenticação da API está incompleta.');
+        return;
+      }
+
+      login(result.access_token, {
+        id: result.usuario.id,
+        nome: result.usuario.nome,
+        email: result.usuario.email,
+        perfil: result.usuario.perfil,
+      });
+      navigate('/', { replace: true });
     } catch (err) {
-      console.error(err);
-      // Fallback local se estiver totalmente offline
-      const local = localStorage.getItem('local_funcionarios');
-      if (local) {
-        const list = JSON.parse(local);
-        const user = list.find((f: any) => f.email?.toLowerCase().trim() === username.toLowerCase().trim());
-        if (user) {
-          if (user.ativo === false) {
-            setError('Funcionário inativo no sistema.');
-            setLoading(false);
-            return;
-          }
-          sessionStorage.setItem('admin_auth_token', `token_${user.id}`);
-          sessionStorage.setItem('admin_user_name', user.nome);
-          sessionStorage.setItem('admin_user_email', user.email);
-          navigate('/admin/machines');
-          setLoading(false);
-          return;
-        }
-      }
+      console.error('Erro ao autenticar:', err);
       setError('Erro ao conectar ao servidor de autenticação.');
     } finally {
       setLoading(false);
     }
   };
+
+  if (user) return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 text-white">
@@ -102,9 +87,9 @@ export default function LoginPage() {
         <div className="flex flex-col items-center mb-8">
           <img src={logo} alt="Logo" className="w-16 h-16 mb-4 brightness-125 contrast-125" />
           <h1 className="text-2xl font-black tracking-tighter">
-            Admin <span className="bg-clip-text text-transparent italic pr-2" style={{ backgroundImage: BRAND_GRADIENT }}>Portal</span>
+            Simple <span className="bg-clip-text text-transparent italic pr-2" style={{ backgroundImage: BRAND_GRADIENT }}>IHM</span>
           </h1>
-          <p className="text-xs opacity-50 mt-1 uppercase tracking-widest">Restricted Access</p>
+          <p className="text-xs opacity-50 mt-1 uppercase tracking-widest">Acesso à Plataforma</p>
         </div>
 
         {error && (
@@ -117,7 +102,7 @@ export default function LoginPage() {
           <div className="relative">
             <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-ios-blue" />
             <input
-              type="text"
+              type="email"
               placeholder="E-mail do Funcionário"
               required
               disabled={loading}
@@ -149,12 +134,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <button
-          onClick={() => navigate('/')}
-          className="w-full cursor-pointer text-center text-xs opacity-50 hover:opacity-100 transition-opacity mt-6 underline"
-        >
-          Voltar para a Dashboard Pública
-        </button>
+        <p className="mt-6 text-center text-xs opacity-50">
+          Acesso autorizado para funcionários cadastrados.
+        </p>
       </div>
     </div>
   );

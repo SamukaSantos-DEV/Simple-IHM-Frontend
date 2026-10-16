@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
+import { AuthProvider, RequireAuth, RequireProfile } from './auth/AuthContext';
+import { useAuth } from './auth/useAuth';
+import { apiFetch } from './api';
 import DashboardView from './components/DashboardView';
 import ConnectionStatus from './components/ConnectionStatus';
 import LoginPage from './components/admin/LoginPage';
@@ -8,6 +11,7 @@ import AdminLayout from './components/admin/AdminLayout';
 import MachinesPage from './components/MachinesPage';
 import MaintenancePage from './components/admin/MaintenancePage';
 import FuncionariosPage from './components/admin/FuncionariosPage';
+import AuditPage from './components/admin/AuditPage';
 import { API_BASE_URL } from './config';
 
 const socket = io(API_BASE_URL, { autoConnect: false });
@@ -29,6 +33,23 @@ interface MachineTelemetry {
 }
 
 export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AuthenticatedApp />
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
+
+function AuthenticatedApp() {
+  const { user } = useAuth();
+  return <AppContent key={user?.id ?? 'signed-out'} />;
+}
+
+function AppContent() {
+  const { user } = useAuth();
+  const authenticatedUserId = user?.id;
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('theme');
     return saved ? saved === 'dark' : true;
@@ -59,6 +80,7 @@ export default function App() {
   const [vibrationStructural, setVibrationStructural] = useState(0);
 
   const [availableMachines, setAvailableMachines] = useState<{id: number | string, name: string, tag?: string}[]>([]);
+  const availableMachinesRef = useRef(availableMachines);
   const [selectedMachineId, setSelectedMachineIdState] = useState<number | string | null>(null);
   const selectedMachineIdRef = useRef<number | string | null>(null);
 
@@ -93,6 +115,10 @@ export default function App() {
       setHistoryData(tel.historyData);
     }
   };
+
+  useEffect(() => {
+    availableMachinesRef.current = availableMachines;
+  }, [availableMachines]);
 
   const formatTime = (totalSeconds: number): string => {
     const hrs = Math.floor(totalSeconds / 3600);
@@ -329,15 +355,12 @@ export default function App() {
 
   // Carregar máquinas e manutenções preventivas do servidor e ngrok
   useEffect(() => {
+    if (!authenticatedUserId) return;
+
     const fetchAllData = async () => {
       // 1. Carregar máquinas
       try {
-        const localResponse = await fetch(`${API_BASE_URL}/maquinas`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
-          }
-        });
+        const localResponse = await apiFetch('/maquinas');
         if (localResponse.ok) {
           const machinesLocal = await localResponse.json();
           if (machinesLocal && machinesLocal.length > 0) {
@@ -382,13 +405,7 @@ export default function App() {
       const activeId = selectedMachineIdRef.current;
       if (activeId !== null) {
         try {
-          const ngrokResponse = await fetch(`${API_BASE_URL}/status-maquinas/${activeId}`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'ngrok-skip-browser-warning': 'true' 
-            }
-          });
+          const ngrokResponse = await apiFetch(`/status-maquinas/${activeId}`);
           if (ngrokResponse.ok) {
             const m = await ngrokResponse.json();
             if (m && m.maquina_id !== undefined) {
@@ -414,7 +431,7 @@ export default function App() {
               setTelemetryLogs(prev => {
                 const exists = prev.some(log => log.maquina_id === m.maquina_id && log.momento_da_leitura === m.momento_da_leitura);
                 if (!exists) {
-                  const maquinaRel = availableMachines.find(x => x.id.toString() === m.maquina_id.toString());
+                  const maquinaRel = availableMachinesRef.current.find(x => x.id.toString() === m.maquina_id.toString());
                   const name = maquinaRel ? maquinaRel.name : (m.nome_maquina || `Máquina ${m.maquina_id}`);
                   const newLog = {
                     maquina_id: m.maquina_id,
@@ -504,12 +521,7 @@ export default function App() {
 
       // 2. Carregar manutenções preventivas
       try {
-        const maintenanceResponse = await fetch(`${API_BASE_URL}/manutencoes`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
-          }
-        });
+        const maintenanceResponse = await apiFetch('/manutencoes');
         if (maintenanceResponse.ok) {
           const maintenanceData = await maintenanceResponse.json();
           
@@ -527,56 +539,13 @@ export default function App() {
 
           const normalized = normalizeMaint(maintenanceData);
           setMaintenanceTasks(normalized);
-          localStorage.setItem('local_maintenance', JSON.stringify(maintenanceData));
-        }
-      } catch (e) {
-        console.warn("Backend local offline para carregar manutenções. Carregando do localStorage...");
-        const storedMaint = localStorage.getItem('local_maintenance');
-        if (storedMaint) {
-          const parsed = JSON.parse(storedMaint);
-          const normalizeMaint = (list: any[]) => list.map((t: any) => ({
-            id: t.id,
-            machineId: t.maquina_id !== undefined ? t.maquina_id : t.machineId,
-            taskName: t.descricao_servico !== undefined ? t.descricao_servico : t.taskName,
-            description: t.tipo_manutencao !== undefined ? t.tipo_manutencao : t.description,
-            scheduledDate: t.data_agendada !== undefined ? t.data_agendada : t.scheduledDate,
-            status: t.concluida !== undefined 
-              ? (t.concluida ? 'completed' : (new Date(t.data_agendada) < new Date(new Date().setHours(0,0,0,0)) ? 'overdue' : 'pending'))
-              : t.status,
-            technician: t.nome_funcionario !== undefined ? (t.nome_funcionario || '') : (t.technician || ''),
-          }));
-          setMaintenanceTasks(normalizeMaint(parsed));
         } else {
-          // Mock inicial de manutenções
-          const defaultMaint = [
-            {
-              id: 1,
-              maquina_id: 1,
-              tag_maquina: 'CNC-01',
-              nome_maquina: 'Torno CNC Romi',
-              descricao_servico: 'Troca de Óleo Lubrificante',
-              tipo_manutencao: 'Preventiva',
-              data_agendada: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-              concluida: false,
-              data_conclusao_real: null,
-              funcionario_id: null,
-              nome_funcionario: null,
-            }
-          ];
-          const normalizeMaint = (list: any[]) => list.map((t: any) => ({
-            id: t.id,
-            machineId: t.maquina_id !== undefined ? t.maquina_id : t.machineId,
-            taskName: t.descricao_servico !== undefined ? t.descricao_servico : t.taskName,
-            description: t.tipo_manutencao !== undefined ? t.tipo_manutencao : t.description,
-            scheduledDate: t.data_agendada !== undefined ? t.data_agendada : t.scheduledDate,
-            status: t.concluida !== undefined 
-              ? (t.concluida ? 'completed' : (new Date(t.data_agendada) < new Date(new Date().setHours(0,0,0,0)) ? 'overdue' : 'pending'))
-              : t.status,
-            technician: t.nome_funcionario !== undefined ? (t.nome_funcionario || '') : (t.technician || ''),
-          }));
-          setMaintenanceTasks(normalizeMaint(defaultMaint));
-          localStorage.setItem('local_maintenance', JSON.stringify(defaultMaint));
+          console.error(`A API recusou o carregamento das manutenções: HTTP ${maintenanceResponse.status}.`);
+          setMaintenanceTasks([]);
         }
+      } catch (error) {
+        console.error('Erro ao carregar manutenções para o dashboard:', error);
+        setMaintenanceTasks([]);
       }
     };
 
@@ -627,10 +596,9 @@ export default function App() {
       socket.off('disconnect');
       socket.off('dashboard_update');
     };
-  }, []);
+  }, [authenticatedUserId]);
 
   return (
-    <BrowserRouter>
       <div className="min-h-screen font-sans transition-colors duration-700">
         {/* Notificações globais de conexão */}
         <ConnectionStatus 
@@ -639,10 +607,12 @@ export default function App() {
         />
 
         <Routes>
-          {/* Rota Raiz: Dashboard Pública */}
-          <Route 
-            path="/" 
-            element={
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+          <Route element={<RequireAuth />}>
+            <Route
+              path="/"
+              element={
               <DashboardView 
                 darkMode={darkMode}
                 setDarkMode={setDarkMode}
@@ -668,24 +638,28 @@ export default function App() {
                 maintenanceTasks={maintenanceTasks}
                 telemetryLogs={telemetryLogs}
               />
-            } 
-          />
-
-          {/* Rota de Login do Admin */}
-          <Route path="/admin/login" element={<LoginPage />} />
-
-          {/* Área Protegida do Admin */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Navigate to="/admin/machines" replace />} />
-            <Route path="machines" element={<MachinesPage />} />
-            <Route path="funcionarios" element={<FuncionariosPage />} />
-            <Route path="maintenance" element={<MaintenancePage />} />
+              }
+            />
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Navigate to="/admin/machines" replace />} />
+              <Route path="machines" element={<MachinesPage />} />
+              <Route path="funcionarios" element={
+                <RequireProfile allowedProfiles={['ADMIN']}>
+                  <FuncionariosPage />
+                </RequireProfile>
+              } />
+              <Route path="maintenance" element={<MaintenancePage />} />
+              <Route path="audit" element={
+                <RequireProfile allowedProfiles={['ADMIN']}>
+                  <AuditPage />
+                </RequireProfile>
+              } />
+            </Route>
           </Route>
           
           {/* Rota Curinga */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
-    </BrowserRouter>
   );
 }

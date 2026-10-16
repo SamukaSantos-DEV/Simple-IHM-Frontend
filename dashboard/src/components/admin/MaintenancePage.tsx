@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Check, X, Calendar, Wrench, User, FileText, Loader } from 'lucide-react';
-import { API_BASE_URL } from '../../config';
+import { apiErrorMessage, apiFetch } from '../../api';
+import { isMaintenanceEditor } from '../../auth/session';
+import { useAuth } from '../../auth/useAuth';
 
 interface MaintenanceTask {
   id?: number;
@@ -23,22 +25,15 @@ interface Machine {
   setor: string;
 }
 
-interface Funcionario {
-  id: number;
-  nome: string;
-  cargo: string;
-  turno_trabalho: number;
-  ativo: boolean;
-  email: string;
-}
-
 export default function MaintenancePage() {
+  const { user } = useAuth();
+  const canEdit = isMaintenanceEditor(user?.perfil);
   const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
-  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   
   // Dados do Formulário
   const [formData, setFormData] = useState({
@@ -48,237 +43,86 @@ export default function MaintenancePage() {
     tipo_manutencao: 'Preventiva',
   });
 
-  // Estado para Modal de Conclusão
   const [completingTaskId, setCompletingTaskId] = useState<number | null>(null);
-  const [selectedFuncId, setSelectedFuncId] = useState<string>('');
 
-  useEffect(() => {
-    fetchMachines();
-    fetchFuncionarios();
-    fetchTasks();
-  }, []);
-
-  const fetchMachines = async () => {
+  const fetchMachines = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/maquinas`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        }
-      });
+      const response = await apiFetch('/maquinas');
       if (response.ok) {
         const data = await response.json();
         setMachines(data);
-        if (data.length > 0 && !formData.maquina_id) {
-          setFormData(prev => ({ ...prev, maquina_id: data[0].id.toString() }));
+        if (data.length > 0) {
+          setFormData(prev => prev.maquina_id ? prev : { ...prev, maquina_id: data[0].id.toString() });
         }
       } else {
-        loadFallbackMachines();
+        setError(await apiErrorMessage(response, 'Não foi possível carregar as máquinas.'));
       }
     } catch (error) {
       console.error('Erro ao carregar máquinas:', error);
-      loadFallbackMachines();
+      setError('Não foi possível conectar à API para carregar as máquinas.');
     }
-  };
+  }, []);
 
-  const loadFallbackMachines = () => {
-    const local = localStorage.getItem('local_machines');
-    if (local) {
-      const parsed = JSON.parse(local);
-      setMachines(parsed);
-      if (parsed.length > 0) {
-        setFormData(prev => ({ ...prev, maquina_id: parsed[0].id.toString() }));
-      }
-    } else {
-      const mock = [{ id: 1, tag_maquina: 'CNC-01', nome_maquina: 'Torno CNC Romi', setor: 'Usinagem' }];
-      setMachines(mock);
-      setFormData(prev => ({ ...prev, maquina_id: '1' }));
-    }
-  };
-
-  const fetchFuncionarios = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/funcionarios`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setFuncionarios(data);
-        if (data.length > 0) {
-          setSelectedFuncId(data[0].id.toString());
-        }
-      } else {
-        loadFallbackFuncionarios();
-      }
-    } catch (error) {
-      console.error('Erro ao carregar funcionários:', error);
-      loadFallbackFuncionarios();
-    }
-  };
-
-  const loadFallbackFuncionarios = () => {
-    const local = localStorage.getItem('local_funcionarios');
-    if (local) {
-      const parsed = JSON.parse(local);
-      setFuncionarios(parsed);
-      if (parsed.length > 0) {
-        setSelectedFuncId(parsed[0].id.toString());
-      }
-    } else {
-      const mock = [{ id: 1, nome: 'Carlos Eduardo', cargo: 'Técnico', turno_trabalho: 1, ativo: true, email: 'carlos@example.com' }];
-      setFuncionarios(mock);
-      setSelectedFuncId('1');
-    }
-  };
-
-  const fetchTasks = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/manutencoes`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        }
-      });
+      const response = await apiFetch('/manutencoes');
       if (response.ok) {
         const data = await response.json();
         setTasks(data);
-        localStorage.setItem('local_maintenance', JSON.stringify(data));
       } else {
-        loadFallbackTasks();
+        setError(await apiErrorMessage(response, 'Não foi possível carregar as manutenções.'));
+        setTasks([]);
       }
     } catch (error) {
       console.error('Erro ao carregar tarefas de manutenção:', error);
-      loadFallbackTasks();
+      setError('Não foi possível conectar à API para carregar as manutenções.');
+      setTasks([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadFallbackTasks = () => {
-    const local = localStorage.getItem('local_maintenance');
-    if (local) {
-      setTasks(JSON.parse(local));
-    } else {
-      const mockTasks: MaintenanceTask[] = [
-        {
-          id: 1,
-          maquina_id: 1,
-          tag_maquina: 'CNC-01',
-          nome_maquina: 'Torno CNC Romi',
-          descricao_servico: 'Troca de Óleo Lubrificante',
-          data_agendada: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          concluida: false,
-          tipo_manutencao: 'Preventiva',
-        },
-        {
-          id: 2,
-          maquina_id: 1,
-          tag_maquina: 'CNC-01',
-          nome_maquina: 'Torno CNC Romi',
-          descricao_servico: 'Aperto de Base e Parafusos',
-          data_agendada: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          concluida: false,
-          tipo_manutencao: 'Corretiva',
-        }
-      ];
-      setTasks(mockTasks);
-      localStorage.setItem('local_maintenance', JSON.stringify(mockTasks));
-    }
-  };
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void fetchMachines();
+      void fetchTasks();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchMachines, fetchTasks]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEdit) return;
     try {
       setLoading(true);
-      
-      const isLocalOnly = !window.navigator.onLine;
-      let success = false;
+      setError('');
 
-      if (!isLocalOnly) {
-        try {
-          if (editingId) {
-            // PUT aceita apenas descricao_servico, data_agendada, tipo_manutencao
-            const payload = {
-              descricao_servico: formData.descricao_servico,
-              data_agendada: formData.data_agendada,
-              tipo_manutencao: formData.tipo_manutencao
-            };
-            const response = await fetch(`${API_BASE_URL}/manutencoes/${editingId}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true'
-              },
-              body: JSON.stringify(payload),
-            });
-            if (response.ok) success = true;
-          } else {
-            // POST aceita maquina_id, descricao_servico, data_agendada, tipo_manutencao
-            const payload = {
-              maquina_id: Number(formData.maquina_id),
-              descricao_servico: formData.descricao_servico,
-              data_agendada: formData.data_agendada,
-              tipo_manutencao: formData.tipo_manutencao
-            };
-            const response = await fetch(`${API_BASE_URL}/manutencoes`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true'
-              },
-              body: JSON.stringify(payload),
-            });
-            if (response.ok) success = true;
-          }
-        } catch {
-          success = false;
-        }
+      const payload = {
+        descricao_servico: formData.descricao_servico,
+        data_agendada: formData.data_agendada,
+        tipo_manutencao: formData.tipo_manutencao,
+        ...(!editingId && { maquina_id: Number(formData.maquina_id) }),
+      };
+      const response = await apiFetch(editingId ? `/manutencoes/${editingId}` : '/manutencoes', {
+        method: editingId ? 'PUT' : 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        setError(await apiErrorMessage(response, 'A API não permitiu salvar a manutenção.'));
+        return;
       }
-
-      if (!success) {
-        // Fallback local
-        let updatedTasksList = [...tasks];
-        const maquinaRel = machines.find(m => m.id.toString() === formData.maquina_id);
-        
-        if (editingId) {
-          updatedTasksList = tasks.map(t => t.id === editingId ? {
-            ...t,
-            descricao_servico: formData.descricao_servico,
-            data_agendada: formData.data_agendada,
-            tipo_manutencao: formData.tipo_manutencao
-          } : t);
-        } else {
-          const newTask: MaintenanceTask = {
-            id: Date.now(),
-            maquina_id: Number(formData.maquina_id),
-            tag_maquina: maquinaRel ? maquinaRel.tag_maquina : '',
-            nome_maquina: maquinaRel ? maquinaRel.nome_maquina : '',
-            descricao_servico: formData.descricao_servico,
-            data_agendada: formData.data_agendada,
-            concluida: false,
-            tipo_manutencao: formData.tipo_manutencao
-          };
-          updatedTasksList.push(newTask);
-        }
-        setTasks(updatedTasksList);
-        localStorage.setItem('local_maintenance', JSON.stringify(updatedTasksList));
-        resetForm();
-      } else {
-        await fetchTasks();
-        resetForm();
-      }
+      await fetchTasks();
+      resetForm();
     } catch (error) {
       console.error('Erro ao salvar manutenção:', error);
+      setError('Não foi possível salvar a manutenção na API.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleEdit = (task: MaintenanceTask) => {
+    if (!canEdit) return;
     setFormData({
       maquina_id: task.maquina_id.toString(),
       descricao_servico: task.descricao_servico,
@@ -291,90 +135,45 @@ export default function MaintenancePage() {
   };
 
   const handleDelete = async (id: number) => {
+    if (!canEdit) return;
     if (!window.confirm('Tem certeza que deseja deletar esta manutenção?')) return;
 
     try {
-      let success = false;
-      try {
-        const response = await fetch(`${API_BASE_URL}/manutencoes/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
-          }
-        });
-        if (response.ok) success = true;
-      } catch {
-        success = false;
+      setError('');
+      const response = await apiFetch(`/manutencoes/${id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        setError(await apiErrorMessage(response, 'A API não permitiu remover a manutenção.'));
+        return;
       }
-
-      if (!success) {
-        const updated = tasks.filter(t => t.id !== id);
-        setTasks(updated);
-        localStorage.setItem('local_maintenance', JSON.stringify(updated));
-      } else {
-        await fetchTasks();
-      }
+      await fetchTasks();
     } catch (error) {
       console.error('Erro ao deletar manutenção:', error);
+      setError('Não foi possível remover a manutenção na API.');
     }
   };
 
-  // Abrir diálogo de conclusão
   const handleOpenCompleteModal = (taskId: number) => {
+    if (!canEdit) return;
     setCompletingTaskId(taskId);
-    if (funcionarios.length > 0) {
-      setSelectedFuncId(funcionarios[0].id.toString());
-    }
   };
 
-  // Enviar requisição PATCH para concluir tarefa
   const handleConfirmComplete = async () => {
     if (!completingTaskId) return;
 
     try {
       setLoading(true);
-      const fid = Number(selectedFuncId);
-      const isLocalOnly = !window.navigator.onLine;
-      let success = false;
-
-      if (!isLocalOnly) {
-        try {
-          const response = await fetch(`${API_BASE_URL}/manutencoes/${completingTaskId}/concluir`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              'ngrok-skip-browser-warning': 'true'
-            },
-            body: JSON.stringify({ funcionario_id: fid }),
-          });
-          if (response.ok) success = true;
-        } catch {
-          success = false;
-        }
+      setError('');
+      const response = await apiFetch(`/manutencoes/${completingTaskId}/concluir`, {
+        method: 'PATCH',
+      });
+      if (!response.ok) {
+        setError(await apiErrorMessage(response, 'A API não permitiu concluir a manutenção.'));
+        return;
       }
-
-      if (!success) {
-        const funcObj = funcionarios.find(f => f.id === fid);
-        const updated = tasks.map(t => {
-          if (t.id === completingTaskId) {
-            return {
-              ...t,
-              concluida: true,
-              data_conclusao_real: new Date().toISOString(),
-              funcionario_id: fid,
-              nome_funcionario: funcObj ? funcObj.nome : 'Técnico Local'
-            };
-          }
-          return t;
-        });
-        setTasks(updated);
-        localStorage.setItem('local_maintenance', JSON.stringify(updated));
-      } else {
-        await fetchTasks();
-      }
+      await fetchTasks();
     } catch (error) {
       console.error('Erro ao concluir manutenção:', error);
+      setError('Não foi possível concluir a manutenção na API.');
     } finally {
       setCompletingTaskId(null);
       setLoading(false);
@@ -416,9 +215,13 @@ export default function MaintenancePage() {
         <div className="flex justify-between items-center mb-12">
           <div>
             <h1 className="text-3xl font-black tracking-tighter mb-2">Manutenção Preventiva</h1>
-            <p className="text-sm opacity-60">Agende e monitore as intervenções preventivas dos equipamentos</p>
+            <p className="text-sm opacity-60">
+              {canEdit
+                ? 'Agende e monitore as intervenções preventivas dos equipamentos'
+                : 'Consulta de manutenções em modo somente leitura'}
+            </p>
           </div>
-          <button
+          {canEdit && <button
             onClick={() => {
               resetForm();
               setShowForm(true);
@@ -427,11 +230,17 @@ export default function MaintenancePage() {
           >
             <Plus size={20} />
             Agendar Manutenção
-          </button>
+          </button>}
         </div>
 
+        {error && (
+          <div role="alert" className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-300">
+            {error}
+          </div>
+        )}
+
         {/* Form */}
-        {showForm && (
+        {canEdit && showForm && (
           <div className="seamless-panel rounded-ios p-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-300">
             <h2 className="text-xl font-bold mb-6 flex items-center gap-3">
               <Wrench size={24} />
@@ -526,12 +335,12 @@ export default function MaintenancePage() {
           ) : tasks.length === 0 ? (
             <div className="text-center py-12 opacity-60">
               <p className="mb-4">Nenhuma manutenção agendada</p>
-              <button
+              {canEdit && <button
                 onClick={() => setShowForm(true)}
                 className="text-ios-blue hover:underline font-bold cursor-pointer"
               >
                 Agendar primeira preventiva
-              </button>
+              </button>}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -581,7 +390,7 @@ export default function MaintenancePage() {
                   </div>
 
                   <div className="flex gap-2 justify-between items-center mt-2 border-t border-black/5 dark:border-white/5 pt-3">
-                    {!task.concluida ? (
+                    {canEdit && !task.concluida ? (
                       <label 
                         onClick={() => task.id && handleOpenCompleteModal(task.id)}
                         className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold opacity-80 hover:opacity-100 transition-opacity"
@@ -594,14 +403,14 @@ export default function MaintenancePage() {
                         />
                         <span>Concluir Manutenção</span>
                       </label>
-                    ) : (
+                    ) : task.concluida ? (
                       <span className="text-xs font-bold text-ios-green flex items-center gap-1 select-none">
                         <Check size={14} />
                         Concluída
                       </span>
-                    )}
+                    ) : <span />}
 
-                    <div className="flex gap-1">
+                    {canEdit && <div className="flex gap-1">
                       {!task.concluida && (
                         <button
                           onClick={() => handleEdit(task)}
@@ -618,7 +427,7 @@ export default function MaintenancePage() {
                       >
                         <Trash2 size={15} />
                       </button>
-                    </div>
+                    </div>}
                   </div>
                 </div>
               ))}
@@ -636,23 +445,8 @@ export default function MaintenancePage() {
               Finalizar Manutenção
             </h3>
             <p className="text-xs opacity-75">
-              Selecione o funcionário responsável pela execução e conclusão deste serviço técnico preventivo.
+              A conclusão será registrada para o usuário autenticado: {user?.nome}.
             </p>
-
-            <div className="my-2">
-              <label className="block text-xs font-bold mb-2 opacity-70">Funcionário Executor *</label>
-              <select
-                value={selectedFuncId}
-                onChange={(e) => setSelectedFuncId(e.target.value)}
-                className="w-full bg-black/5 dark:bg-white/5 border-none rounded-xl px-4 py-3 text-sm outline-none focus:ring-1 ring-ios-blue/30 transition-all cursor-pointer text-slate-800 dark:text-slate-100"
-              >
-                {funcionarios.map(f => (
-                  <option key={f.id} value={f.id} className="text-black dark:text-white bg-slate-100 dark:bg-slate-900">
-                    {f.nome} ({f.cargo})
-                  </option>
-                ))}
-              </select>
-            </div>
 
             <div className="flex gap-3 justify-end mt-4">
               <button

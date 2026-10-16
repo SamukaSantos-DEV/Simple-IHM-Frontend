@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Check, X, Settings } from 'lucide-react';
-import { API_BASE_URL } from '../config';
+import { apiErrorMessage, apiFetch } from '../api';
+import { useAuth } from '../auth/useAuth';
 
 interface Machine {
   id?: number;
@@ -11,46 +12,20 @@ interface Machine {
 }
 
 export default function MachinesPage() {
+  const { user } = useAuth();
+  const canEdit = user?.perfil === 'ADMIN';
   const [machines, setMachines] = useState<Machine[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState<Machine>({
     tag_maquina: '',
     nome_maquina: '',
     setor: '',
   });
 
-  // Carregar máquinas do servidor
-  useEffect(() => {
-    fetchMachines();
-  }, []);
-
-  const fetchMachines = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/maquinas`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setMachines(data);
-        localStorage.setItem('local_machines', JSON.stringify(data));
-      } else {
-        loadFallbackMachines();
-      }
-    } catch (error) {
-      console.error('Erro ao carregar máquinas:', error);
-      loadFallbackMachines();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadFallbackMachines = () => {
+  const loadFallbackMachines = useCallback(() => {
     const local = localStorage.getItem('local_machines');
     if (local) {
       setMachines(JSON.parse(local));
@@ -62,15 +37,39 @@ export default function MachinesPage() {
       setMachines(mock);
       localStorage.setItem('local_machines', JSON.stringify(mock));
     }
-  };
+  }, []);
+
+  const fetchMachines = useCallback(async () => {
+    try {
+      const response = await apiFetch('/maquinas');
+      if (response.ok) {
+        const data = await response.json();
+        setMachines(data);
+        localStorage.setItem('local_machines', JSON.stringify(data));
+      } else {
+        setError(await apiErrorMessage(response, 'Não foi possível carregar as máquinas.'));
+      }
+    } catch (error) {
+      console.error('Erro ao carregar máquinas:', error);
+      setError('Não foi possível conectar à API. Exibindo os dados locais disponíveis.');
+      loadFallbackMachines();
+    } finally {
+      setLoading(false);
+    }
+  }, [loadFallbackMachines]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => void fetchMachines(), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchMachines]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEdit) return;
     
     try {
       setLoading(true);
-      const isLocalOnly = !window.navigator.onLine;
-      let success = false;
+      setError('');
 
       const payload = {
         tag_maquina: formData.tag_maquina,
@@ -78,70 +77,26 @@ export default function MachinesPage() {
         setor: formData.setor,
       };
       
-      if (!isLocalOnly) {
-        try {
-          if (editingId) {
-            // Atualizar máquina existente
-            const response = await fetch(`${API_BASE_URL}/maquinas/${editingId}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true'
-              },
-              body: JSON.stringify(payload),
-            });
-            
-            if (response.ok) {
-              success = true;
-            }
-          } else {
-            // Criar nova máquina
-            const response = await fetch(`${API_BASE_URL}/maquinas`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true'
-              },
-              body: JSON.stringify(payload),
-            });
-            
-            if (response.ok) {
-              success = true;
-            }
-          }
-        } catch {
-          success = false;
-        }
+      const response = await apiFetch(editingId ? `/maquinas/${editingId}` : '/maquinas', {
+        method: editingId ? 'PUT' : 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        setError(await apiErrorMessage(response, 'A API não permitiu salvar a máquina.'));
+        return;
       }
-
-      if (!success) {
-        // Fallback local
-        let updatedList = [...machines];
-        if (editingId) {
-          updatedList = machines.map(m => m.id === editingId ? { ...m, ...payload } : m);
-        } else {
-          const newMachine = {
-            ...payload,
-            id: Date.now(),
-            data_cadastro: new Date().toISOString()
-          };
-          updatedList.push(newMachine);
-        }
-        setMachines(updatedList);
-        localStorage.setItem('local_machines', JSON.stringify(updatedList));
-        resetForm();
-      } else {
-        await fetchMachines();
-        resetForm();
-      }
+      await fetchMachines();
+      resetForm();
     } catch (error) {
       console.error('Erro ao salvar máquina:', error);
+      setError('Não foi possível salvar a máquina na API.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleEdit = (machine: Machine) => {
+    if (!canEdit) return;
     setFormData({
       tag_maquina: machine.tag_maquina,
       nome_maquina: machine.nome_maquina,
@@ -153,34 +108,20 @@ export default function MachinesPage() {
   };
 
   const handleDelete = async (id: number) => {
+    if (!canEdit) return;
     if (!window.confirm('Tem certeza que deseja deletar esta máquina?')) return;
 
     try {
-      let success = false;
-      try {
-        const response = await fetch(`${API_BASE_URL}/maquinas/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
-          }
-        });
-        if (response.ok) {
-          success = true;
-        }
-      } catch {
-        success = false;
+      setError('');
+      const response = await apiFetch(`/maquinas/${id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        setError(await apiErrorMessage(response, 'A API não permitiu remover a máquina.'));
+        return;
       }
-      
-      if (!success) {
-        const updated = machines.filter(m => m.id !== id);
-        setMachines(updated);
-        localStorage.setItem('local_machines', JSON.stringify(updated));
-      } else {
-        await fetchMachines();
-      }
+      await fetchMachines();
     } catch (error) {
       console.error('Erro ao deletar máquina:', error);
+      setError('Não foi possível remover a máquina na API.');
     }
   };
 
@@ -196,9 +137,11 @@ export default function MachinesPage() {
         <div className="flex justify-between items-center mb-12">
           <div>
             <h1 className="text-3xl font-black tracking-tighter mb-2">Gerenciar Máquinas</h1>
-            <p className="text-sm opacity-60">Cadastre e gerencie as máquinas do seu sistema</p>
+            <p className="text-sm opacity-60">
+              {canEdit ? 'Cadastre e gerencie as máquinas do seu sistema' : 'Consulta de máquinas em modo somente leitura'}
+            </p>
           </div>
-          <button
+          {canEdit && <button
             onClick={() => {
               resetForm();
               setShowForm(true);
@@ -207,11 +150,17 @@ export default function MachinesPage() {
           >
             <Plus size={20} />
             Nova Máquina
-          </button>
+          </button>}
         </div>
 
+        {error && (
+          <div role="alert" className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-300">
+            {error}
+          </div>
+        )}
+
         {/* Form */}
-        {showForm && (
+        {canEdit && showForm && (
           <div className="seamless-panel rounded-ios p-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-300">
             <h2 className="text-xl font-bold mb-6 flex items-center gap-3">
               <Settings size={24} />
@@ -287,12 +236,12 @@ export default function MachinesPage() {
           ) : machines.length === 0 ? (
             <div className="text-center py-12 opacity-60">
               <p className="mb-4">Nenhuma máquina cadastrada</p>
-              <button
+              {canEdit && <button
                 onClick={() => setShowForm(true)}
                 className="text-ios-blue hover:underline font-bold cursor-pointer"
               >
                 Criar primeira máquina
-              </button>
+              </button>}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -313,22 +262,24 @@ export default function MachinesPage() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 justify-end border-t border-black/5 dark:border-white/5 pt-3 mt-4">
-                    <button
-                      onClick={() => handleEdit(machine)}
-                      className="p-2 hover:bg-ios-blue/20 rounded-lg transition-all text-ios-blue cursor-pointer"
-                      title="Editar"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => machine.id && handleDelete(machine.id)}
-                      className="p-2 hover:bg-ios-red/20 rounded-lg transition-all text-ios-red cursor-pointer"
-                      title="Deletar"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                  {canEdit && (
+                    <div className="flex gap-2 justify-end border-t border-black/5 dark:border-white/5 pt-3 mt-4">
+                      <button
+                        onClick={() => handleEdit(machine)}
+                        className="p-2 hover:bg-ios-blue/20 rounded-lg transition-all text-ios-blue cursor-pointer"
+                        title="Editar"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => machine.id && handleDelete(machine.id)}
+                        className="p-2 hover:bg-ios-red/20 rounded-lg transition-all text-ios-red cursor-pointer"
+                        title="Deletar"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

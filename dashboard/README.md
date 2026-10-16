@@ -13,3 +13,7 @@ Aplicação web em React, TypeScript e Vite, também preparada para rodar como a
 No Android Studio, configure **Settings > Build, Execution, Deployment > Build Tools > Gradle > Gradle JDK** para usar o JDK 21.
 
 O app usa a API publicada configurada em `src/config.ts`. O celular precisa de acesso à internet para receber dados do servidor.
+
+## Acesso e perfis
+
+Toda a plataforma exige autenticação em `POST /login`; o token JWT retornado é enviado como Bearer nas chamadas protegidas da API. Os perfis são `ADMIN`, `MANUTENCAO` e `OPERADOR`: administradores têm acesso às telas de gestão e à auditoria, manutenção pode alterar ordens de manutenção, e operadores consultam essas ordens em modo somente leitura. A API deve permitir `GET /manutencoes` também para `OPERADOR`, sem conceder permissões de escrita.

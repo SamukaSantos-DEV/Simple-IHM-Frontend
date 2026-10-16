@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Check, X, User, Mail, Briefcase, Clock } from 'lucide-react';
-import { API_BASE_URL } from '../../config';
+import { apiErrorMessage, apiFetch } from '../../api';
+import { isUserProfile, type UserProfile } from '../../auth/session';
 
 interface Funcionario {
   id?: number;
@@ -10,132 +11,78 @@ interface Funcionario {
   ativo?: boolean;
   email: string;
   senha?: string;
+  perfil: UserProfile;
 }
 
 export default function FuncionariosPage() {
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState<Funcionario>({
     nome: '',
     cargo: '',
     turno_trabalho: 1,
     email: '',
     senha: '',
+    perfil: 'OPERADOR',
   });
 
-  useEffect(() => {
-    fetchFuncionarios();
-  }, []);
-
-  const fetchFuncionarios = async () => {
+  const fetchFuncionarios = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/funcionarios`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        }
-      });
+      const response = await apiFetch('/funcionarios');
       if (response.ok) {
         const data = await response.json();
         setFuncionarios(data);
-        localStorage.setItem('local_funcionarios', JSON.stringify(data));
       } else {
-        loadFallbackFuncionarios();
+        setError(await apiErrorMessage(response, 'Não foi possível carregar os funcionários.'));
+        setFuncionarios([]);
       }
     } catch (error) {
       console.error('Erro ao carregar funcionários:', error);
-      loadFallbackFuncionarios();
+      setError('Não foi possível conectar à API para carregar os funcionários.');
+      setFuncionarios([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadFallbackFuncionarios = () => {
-    const local = localStorage.getItem('local_funcionarios');
-    if (local) {
-      setFuncionarios(JSON.parse(local));
-    } else {
-      const mock: Funcionario[] = [
-        { id: 1, nome: 'Carlos Eduardo', cargo: 'Técnico de Manutenção', turno_trabalho: 1, ativo: true, email: 'carlos@example.com' },
-        { id: 2, nome: 'Ana Maria', cargo: 'Engenheira de Confiabilidade', turno_trabalho: 2, ativo: true, email: 'ana@example.com' }
-      ];
-      setFuncionarios(mock);
-      localStorage.setItem('local_funcionarios', JSON.stringify(mock));
-    }
-  };
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => void fetchFuncionarios(), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchFuncionarios]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setLoading(true);
-
-      const isLocalOnly = !window.navigator.onLine;
-      let success = false;
-
-      const payload: any = {
+      setError('');
+      const payload: Partial<Funcionario> = {
         nome: formData.nome,
         cargo: formData.cargo,
         turno_trabalho: Number(formData.turno_trabalho),
         email: formData.email,
+        perfil: formData.perfil,
       };
 
       if (!editingId) {
-        payload.senha = formData.senha || '123456';
+        payload.senha = formData.senha;
       }
 
-      if (!isLocalOnly) {
-        try {
-          if (editingId) {
-            const response = await fetch(`${API_BASE_URL}/funcionarios/${editingId}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true'
-              },
-              body: JSON.stringify(payload),
-            });
-            if (response.ok) success = true;
-          } else {
-            const response = await fetch(`${API_BASE_URL}/funcionarios`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true'
-              },
-              body: JSON.stringify(payload),
-            });
-            if (response.ok) success = true;
-          }
-        } catch {
-          success = false;
-        }
+      const response = await apiFetch(editingId ? `/funcionarios/${editingId}` : '/funcionarios', {
+        method: editingId ? 'PUT' : 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        setError(await apiErrorMessage(response, 'A API não permitiu salvar o funcionário.'));
+        return;
       }
-
-      if (!success) {
-        let updatedList = [...funcionarios];
-        if (editingId) {
-          updatedList = funcionarios.map(f => f.id === editingId ? { ...f, ...payload } : f);
-        } else {
-          const newF: Funcionario = {
-            ...payload,
-            id: Date.now(),
-            ativo: true,
-          };
-          delete newF.senha;
-          updatedList.push(newF);
-        }
-        setFuncionarios(updatedList);
-        localStorage.setItem('local_funcionarios', JSON.stringify(updatedList));
-        resetForm();
-      } else {
-        await fetchFuncionarios();
-        resetForm();
-      }
+      await fetchFuncionarios();
+      resetForm();
     } catch (error) {
       console.error('Erro ao salvar funcionário:', error);
+      setError('Não foi possível salvar o funcionário na API.');
     } finally {
       setLoading(false);
     }
@@ -147,7 +94,8 @@ export default function FuncionariosPage() {
       cargo: func.cargo,
       turno_trabalho: func.turno_trabalho,
       email: func.email,
-      senha: '', // Senha não é editável diretamente pelo PUT
+      senha: '',
+      perfil: func.perfil,
     });
     setEditingId(func.id || null);
     setShowForm(true);
@@ -158,29 +106,16 @@ export default function FuncionariosPage() {
     if (!window.confirm('Tem certeza que deseja deletar este funcionário?')) return;
 
     try {
-      let success = false;
-      try {
-        const response = await fetch(`${API_BASE_URL}/funcionarios/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
-          }
-        });
-        if (response.ok) success = true;
-      } catch {
-        success = false;
+      setError('');
+      const response = await apiFetch(`/funcionarios/${id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        setError(await apiErrorMessage(response, 'A API não permitiu remover o funcionário.'));
+        return;
       }
-
-      if (!success) {
-        const updated = funcionarios.filter(f => f.id !== id);
-        setFuncionarios(updated);
-        localStorage.setItem('local_funcionarios', JSON.stringify(updated));
-      } else {
-        await fetchFuncionarios();
-      }
+      await fetchFuncionarios();
     } catch (error) {
       console.error('Erro ao deletar funcionário:', error);
+      setError('Não foi possível remover o funcionário na API.');
     }
   };
 
@@ -191,6 +126,7 @@ export default function FuncionariosPage() {
       turno_trabalho: 1,
       email: '',
       senha: '',
+      perfil: 'OPERADOR',
     });
     setEditingId(null);
     setShowForm(false);
@@ -215,6 +151,12 @@ export default function FuncionariosPage() {
             Novo Funcionário
           </button>
         </div>
+
+        {error && (
+          <div role="alert" className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-300">
+            {error}
+          </div>
+        )}
 
         {/* Form */}
         {showForm && (
@@ -277,6 +219,24 @@ export default function FuncionariosPage() {
                   <option value={1} className="text-black dark:text-white bg-slate-100 dark:bg-slate-900">Turno 1 (06:00 - 14:00)</option>
                   <option value={2} className="text-black dark:text-white bg-slate-100 dark:bg-slate-900">Turno 2 (14:00 - 22:00)</option>
                   <option value={3} className="text-black dark:text-white bg-slate-100 dark:bg-slate-900">Turno 3 (22:00 - 06:00)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-2 opacity-70">Perfil de Acesso *</label>
+                <select
+                  required
+                  value={formData.perfil}
+                  onChange={(e) => {
+                    if (isUserProfile(e.target.value)) {
+                      setFormData({ ...formData, perfil: e.target.value });
+                    }
+                  }}
+                  className="w-full bg-black/5 dark:bg-white/5 border-none rounded-xl px-4 py-3 text-sm outline-none focus:ring-1 ring-ios-blue/30 transition-all cursor-pointer text-slate-800 dark:text-slate-100"
+                >
+                  <option value="ADMIN" className="text-black dark:text-white bg-slate-100 dark:bg-slate-900">Administrador</option>
+                  <option value="OPERADOR" className="text-black dark:text-white bg-slate-100 dark:bg-slate-900">Operador</option>
+                  <option value="MANUTENCAO" className="text-black dark:text-white bg-slate-100 dark:bg-slate-900">Manutenção</option>
                 </select>
               </div>
 
@@ -352,6 +312,9 @@ export default function FuncionariosPage() {
                           <span className="text-xs opacity-60 flex items-center gap-1 mt-1">
                             <Briefcase size={12} />
                             {func.cargo}
+                          </span>
+                          <span className="mt-1 block text-[10px] font-bold uppercase tracking-wide text-ios-blue">
+                            {func.perfil === 'ADMIN' ? 'Administrador' : func.perfil === 'MANUTENCAO' ? 'Manutenção' : 'Operador'}
                           </span>
                         </div>
                       </div>
