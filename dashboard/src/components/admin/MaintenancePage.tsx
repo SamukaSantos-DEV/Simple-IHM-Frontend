@@ -241,7 +241,7 @@ export default function MaintenancePage() {
 
         {/* Form */}
         {canEdit && showForm && (
-          <div className="seamless-panel rounded-ios p-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="seamless-panel rounded-2xl p-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-300">
             <h2 className="text-xl font-bold mb-6 flex items-center gap-3">
               <Wrench size={24} />
               {editingId ? 'Editar Manutenção' : 'Agendar Nova Manutenção'}
@@ -325,7 +325,7 @@ export default function MaintenancePage() {
         )}
 
         {/* Tasks List */}
-        <div className="seamless-panel rounded-ios p-8">
+        <div className="seamless-panel rounded-2xl p-8">
           <h2 className="text-xl font-bold mb-6">
             Cronograma de Manutenções ({tasks.length})
           </h2>
@@ -347,7 +347,7 @@ export default function MaintenancePage() {
               {tasks.map((task) => (
                 <div
                   key={task.id}
-                  className={`border border-black/10 dark:border-white/10 rounded-2xl p-6 transition-all flex flex-col justify-between hover:bg-black/5 dark:hover:bg-white/5
+                  className={`border border-black/10 dark:border-white/10 rounded-xl p-6 transition-all flex flex-col justify-between hover:bg-black/5 dark:hover:bg-white/5
                     ${task.concluida ? 'opacity-70' : ''}`}
                 >
                   <div>
@@ -439,7 +439,7 @@ export default function MaintenancePage() {
       {/* Modal de Conclusão */}
       {completingTaskId !== null && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1a1a2e] border border-black/10 dark:border-white/10 rounded-3xl p-6 w-full max-w-md shadow-2xl flex flex-col gap-4 animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-[#1a1a2e] border border-black/10 dark:border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl flex flex-col gap-4 animate-in zoom-in-95 duration-200">
             <h3 className="text-xl font-bold flex items-center gap-2">
               <Check className="text-ios-green" />
               Finalizar Manutenção

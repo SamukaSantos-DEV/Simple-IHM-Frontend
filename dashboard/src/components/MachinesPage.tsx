@@ -161,7 +161,7 @@ export default function MachinesPage() {
 
         {/* Form */}
         {canEdit && showForm && (
-          <div className="seamless-panel rounded-ios p-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="seamless-panel rounded-2xl p-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-300">
             <h2 className="text-xl font-bold mb-6 flex items-center gap-3">
               <Settings size={24} />
               {editingId ? 'Editar Máquina' : 'Criar Nova Máquina'}
@@ -226,7 +226,7 @@ export default function MachinesPage() {
         )}
 
         {/* Machines List */}
-        <div className="seamless-panel rounded-ios p-8">
+        <div className="seamless-panel rounded-2xl p-8">
           <h2 className="text-xl font-bold mb-6">
             Máquinas Cadastradas ({machines.length})
           </h2>

@@ -61,8 +61,6 @@ function AppContent() {
     return typeof navigator !== 'undefined' ? navigator.onLine : true;
   });
   const [isServerSignal, setIsServerSignal] = useState(true);
-  const [lastDataTimestamp, setLastDataTimestamp] = useState<number>(Date.now);
-  const SERVER_SIGNAL_TIMEOUT = 10000;
   
   // Telemetria detalhada por máquina
   const [telemetryMap, setTelemetryMap] = useState<Record<string | number, MachineTelemetry>>({});
@@ -219,19 +217,38 @@ function AppContent() {
     };
   }, []);
 
-  // Timer para verificar se recebeu dados do servidor
+  // Health check da API independente da recepção de telemetria.
   useEffect(() => {
-    const checkServerSignal = setInterval(() => {
-      const timeSinceLastData = Date.now() - lastDataTimestamp;
-      if (timeSinceLastData > SERVER_SIGNAL_TIMEOUT && isServerSignal) {
-        setIsServerSignal(false);
-      } else if (timeSinceLastData <= SERVER_SIGNAL_TIMEOUT && !isServerSignal) {
-        setIsServerSignal(true);
-      }
-    }, 1000);
+    let activeController: AbortController | null = null;
 
-    return () => clearInterval(checkServerSignal);
-  }, [lastDataTimestamp, isServerSignal]);
+    const checkApi = async () => {
+      activeController?.abort();
+      const controller = new AbortController();
+      activeController = controller;
+      const timeoutId = window.setTimeout(() => controller.abort(), 4500);
+
+      try {
+        const response = await fetch(API_BASE_URL, {
+          method: 'GET',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        setIsServerSignal(response.ok);
+      } catch {
+        setIsServerSignal(false);
+      } finally {
+        window.clearTimeout(timeoutId);
+        if (activeController === controller) activeController = null;
+      }
+    };
+
+    void checkApi();
+    const intervalId = window.setInterval(() => void checkApi(), 5000);
+    return () => {
+      window.clearInterval(intervalId);
+      activeController?.abort();
+    };
+  }, []);
 
   // Loop de Simulação de Telemetria (Move os dados a cada segundo)
   useEffect(() => {
@@ -409,9 +426,6 @@ function AppContent() {
           if (ngrokResponse.ok) {
             const m = await ngrokResponse.json();
             if (m && m.maquina_id !== undefined) {
-              setLastDataTimestamp(Date.now());
-              setIsServerSignal(true);
-              
               // 1. Atualizar a lista de máquinas se necessário com o nome/tag retornado
               setAvailableMachines(prev => {
                 const newList = [...prev];
@@ -554,8 +568,6 @@ function AppContent() {
 
     socket.on('connect', () => {
       setIsSocketConnected(true);
-      setIsServerSignal(true);
-      setLastDataTimestamp(Date.now());
     });
 
     socket.on('disconnect', () => {
@@ -564,9 +576,6 @@ function AppContent() {
 
     socket.on('dashboard_update', (data) => {
       // Evento do socket para dados reais do ESP32
-      setLastDataTimestamp(Date.now());
-      setIsServerSignal(true);
-      
       const currentId = selectedMachineIdRef.current;
       if (currentId !== null) {
         setTelemetryMap(prev => {

@@ -1,7 +1,8 @@
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
-import { ClipboardList, LogOut, Wrench, Settings, Users } from 'lucide-react';
-import logo from '../../assets/hero.png';
+import { ArrowLeft, ClipboardList, LogOut, Wrench, Settings, Users } from 'lucide-react';
 import { useAuth } from '../../auth/useAuth';
+
+const BRAND_GRADIENT = 'linear-gradient(135deg, #812FFF 0%, #5CE1E6 100%)';
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
@@ -14,25 +15,33 @@ export default function AdminLayout() {
     navigate('/login', { replace: true });
   };
 
+  const navigationButton = (active = false) => [
+    'flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full px-3 sm:px-4 text-[11px] font-bold transition-colors',
+    active
+      ? 'bg-ios-blue text-white shadow-sm'
+      : 'bg-slate-200/70 text-slate-800 hover:bg-slate-300/80 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/15',
+  ].join(' ');
+
   return (
     <div className="min-h-screen flex flex-col transition-colors duration-700 bg-slate-50 text-slate-900 dark:bg-black dark:text-white">
-      <header className="flex flex-col md:flex-row justify-between items-center px-6 py-4 border-b border-black/10 dark:border-white/10 gap-4 bg-white/20 dark:bg-black/20 backdrop-blur-md">
-        <Link to="/" className="flex items-center gap-4">
-          <img src={logo} alt="Logo" className="w-8 h-8 object-contain" />
+      <header className="flex flex-col items-center justify-between gap-4 border-b border-black/10 bg-white/30 px-4 py-4 backdrop-blur-md dark:border-white/10 dark:bg-black/20 md:flex-row md:px-6">
+        <div className="flex items-center gap-4">
           <div>
-            <h1 className="font-bold tracking-tight">Simple <span className="opacity-50">IHM</span></h1>
+            <h1 className="font-black tracking-tight">
+              Simple <span className="bg-clip-text text-transparent italic" style={{ backgroundImage: BRAND_GRADIENT }}>IHM</span>
+            </h1>
             <p className="text-[10px] uppercase tracking-wider opacity-60">{user?.perfil}</p>
           </div>
-        </Link>
+        </div>
         
-        <div className="flex flex-wrap items-center justify-center gap-2 bg-black/5 dark:bg-white/5 p-1 rounded-xl">
+        <nav aria-label="Navegação do painel" className="flex w-full flex-wrap items-center justify-center gap-2 md:w-auto">
+          <Link to="/" className={navigationButton()}>
+            <ArrowLeft size={14} />
+            DASHBOARD
+          </Link>
           <Link
             to="/admin/machines"
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all
-              ${location.pathname === '/admin/machines'
-                ? 'bg-ios-blue text-white shadow-md shadow-ios-blue/25'
-                : 'opacity-70 hover:opacity-100'
-              }`}
+            className={navigationButton(location.pathname === '/admin/machines')}
           >
             <Settings size={14} />
             MÁQUINAS
@@ -40,11 +49,7 @@ export default function AdminLayout() {
           {isAdmin && (
             <Link
               to="/admin/funcionarios"
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all
-                ${location.pathname === '/admin/funcionarios'
-                  ? 'bg-ios-blue text-white shadow-md shadow-ios-blue/25'
-                  : 'opacity-70 hover:opacity-100'
-                }`}
+              className={navigationButton(location.pathname === '/admin/funcionarios')}
             >
               <Users size={14} />
               FUNCIONÁRIOS
@@ -52,11 +57,7 @@ export default function AdminLayout() {
           )}
           <Link
             to="/admin/maintenance"
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all
-              ${location.pathname === '/admin/maintenance'
-                ? 'bg-ios-blue text-white shadow-md shadow-ios-blue/25'
-                : 'opacity-70 hover:opacity-100'
-              }`}
+            className={navigationButton(location.pathname === '/admin/maintenance')}
           >
             <Wrench size={14} />
             MANUTENÇÕES
@@ -64,23 +65,20 @@ export default function AdminLayout() {
           {isAdmin && (
             <Link
               to="/admin/audit"
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all
-                ${location.pathname === '/admin/audit'
-                  ? 'bg-ios-blue text-white shadow-md shadow-ios-blue/25'
-                  : 'opacity-70 hover:opacity-100'
-                }`}
+              className={navigationButton(location.pathname === '/admin/audit')}
             >
               <ClipboardList size={14} />
               AUDITORIA
             </Link>
           )}
-        </div>
+        </nav>
 
         <div className="flex items-center gap-4">
-          <span className="hidden lg:block text-xs opacity-60">{user?.nome}</span>
-          <button 
+          <span className="hidden max-w-32 truncate text-xs opacity-60 lg:block">{user?.nome}</span>
+          <button
+            type="button"
             onClick={handleLogout}
-            className="flex items-center gap-2 bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 py-2 px-4 rounded-lg cursor-pointer text-xs font-bold opacity-80 hover:opacity-100 transition-colors border border-red-200/50 dark:border-red-900/30"
+            className="flex h-12 items-center gap-2 rounded-full bg-red-600 px-4 text-xs font-bold text-white transition-colors hover:bg-red-700"
           >
             <LogOut size={14} />
             <span>SAIR</span>

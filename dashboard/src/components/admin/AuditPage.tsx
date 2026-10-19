@@ -91,15 +91,15 @@ export default function AuditPage() {
           </div>
         )}
 
-        <div className="seamless-panel rounded-ios overflow-hidden">
+        <div className="seamless-panel rounded-2xl overflow-hidden">
           {loading && logs.length === 0 ? (
             <p className="p-8 text-center opacity-60">Carregando auditoria...</p>
           ) : logs.length === 0 ? (
             <p className="p-8 text-center opacity-60">Nenhum registro de auditoria encontrado.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="bg-black/5 dark:bg-white/5 text-xs uppercase tracking-wide opacity-70">
+              <table className="audit-table w-full min-w-[900px] text-left text-sm">
+                <thead>
                   <tr>
                     <th className="px-5 py-4">Data e hora</th>
                     <th className="px-5 py-4">Usuário</th>
@@ -111,7 +111,7 @@ export default function AuditPage() {
                 </thead>
                 <tbody className="divide-y divide-black/5 dark:divide-white/5">
                   {logs.map(log => (
-                    <tr key={log.id} className="align-top">
+                    <tr key={log.id} className="align-top transition-colors hover:bg-black/5 dark:hover:bg-white/5">
                       <td className="px-5 py-4 whitespace-nowrap">
                         {new Date(log.criado_em).toLocaleString('pt-BR')}
                       </td>

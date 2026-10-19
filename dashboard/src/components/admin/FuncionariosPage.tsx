@@ -160,7 +160,7 @@ export default function FuncionariosPage() {
 
         {/* Form */}
         {showForm && (
-          <div className="seamless-panel rounded-ios p-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="seamless-panel rounded-2xl p-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-300">
             <h2 className="text-xl font-bold mb-6 flex items-center gap-3">
               <User size={24} />
               {editingId ? 'Editar Funcionário' : 'Cadastrar Novo Funcionário'}
@@ -277,7 +277,7 @@ export default function FuncionariosPage() {
         )}
 
         {/* Employees List */}
-        <div className="seamless-panel rounded-ios p-8">
+        <div className="seamless-panel rounded-2xl p-8">
           <h2 className="text-xl font-bold mb-6">
             Funcionários Cadastrados ({funcionarios.length})
           </h2>
@@ -299,7 +299,7 @@ export default function FuncionariosPage() {
               {funcionarios.map((func) => (
                 <div
                   key={func.id}
-                  className="border border-black/10 dark:border-white/10 rounded-2xl p-6 hover:bg-black/5 dark:hover:bg-white/5 transition-all flex flex-col justify-between"
+                  className="border border-black/10 dark:border-white/10 rounded-xl p-6 hover:bg-black/5 dark:hover:bg-white/5 transition-all flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex justify-between items-start mb-4 gap-2">
@@ -319,7 +319,7 @@ export default function FuncionariosPage() {
                         </div>
                       </div>
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border whitespace-nowrap
-                        ${func.ativo ? 'bg-green-500/20 text-green-600 border-green-400/50' : 'bg-gray-500/20 text-gray-600 border-gray-400/50'}`}>
+                        ${func.ativo ? 'bg-green-500/20 text-green-700 dark:text-green-300 border-green-400/50' : 'bg-gray-500/20 text-gray-700 dark:text-gray-300 border-gray-400/50'}`}>
                         {func.ativo ? 'Ativo' : 'Inativo'}
                       </span>
                     </div>

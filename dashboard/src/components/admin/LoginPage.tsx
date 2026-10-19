@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Lock, User } from 'lucide-react';
-import logo from '../../assets/hero.png';
 import { API_BASE_URL } from '../../config';
 import { useAuth } from '../../auth/useAuth';
 import { isUserProfile } from '../../auth/session';
@@ -85,8 +84,7 @@ export default function LoginPage() {
 
       <div className="bg-[#060d1c] border border-white/15 rounded-3xl p-8 md:p-12 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-500">
         <div className="flex flex-col items-center mb-8">
-          <img src={logo} alt="Logo" className="w-16 h-16 mb-4 brightness-125 contrast-125" />
-          <h1 className="text-2xl font-black tracking-tighter">
+          <h1 className="text-3xl font-black tracking-tighter">
             Simple <span className="bg-clip-text text-transparent italic pr-2" style={{ backgroundImage: BRAND_GRADIENT }}>IHM</span>
           </h1>
           <p className="text-xs opacity-50 mt-1 uppercase tracking-widest">Acesso à Plataforma</p>

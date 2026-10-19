@@ -3,7 +3,7 @@ import {
   Clock, Zap, Sun, Moon, Filter,
   Activity as ActivityIcon, ChevronDown, Check, BarChart3,
   TrendingUp, AlertTriangle, ShieldCheck, Wrench, ShieldAlert,
-  ListFilter, LogOut
+  ListFilter, LogOut, UserRound
 } from 'lucide-react';
 import VibrationChart from './VibrationChart';
 import HistoryChart from './HistoryChart';
@@ -230,8 +230,7 @@ export default function DashboardView(props: DashboardViewProps) {
             <div className="relative">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex min-w-0 max-w-[calc(100vw-7rem)] shrink items-center gap-2 whitespace-nowrap rounded-xl border border-white/60 bg-white/40 px-3 py-2 text-sm font-bold text-slate-900 shadow-sm backdrop-blur-xl outline-none transition-all hover:bg-white/55 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 sm:max-w-none sm:px-4"
-                style={{ color: darkMode ? '#ffffff' : '#000000' }}
+                className="header-control-surface flex h-12 min-w-0 max-w-[calc(100vw-7rem)] shrink items-center gap-2 whitespace-nowrap rounded-full px-3 text-sm font-bold backdrop-blur-xl outline-none transition-all dark:bg-white/5 dark:text-white dark:hover:bg-white/10 sm:max-w-none sm:px-4"
               >
                 <span className="hidden max-w-56 truncate md:inline">
                   {availableMachines.find(m => m.id.toString() === selectedMachineId?.toString())?.name || 'Selecione o dispositivo'}
@@ -245,7 +244,13 @@ export default function DashboardView(props: DashboardViewProps) {
               {isDropdownOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
-                  <div className="absolute left-0 right-auto z-50 mt-2 w-56 max-w-[calc(100vw-3rem)] origin-top-left transform overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl transition-all animate-in fade-in zoom-in-95 duration-200 dark:border-white/10 dark:bg-slate-900 sm:left-auto sm:right-0 sm:max-w-none sm:origin-top-right">
+                  <div
+                    className="absolute left-0 right-auto z-50 mt-2 w-56 max-w-[calc(100vw-3rem)] origin-top-left transform overflow-hidden rounded-xl border shadow-2xl transition-all animate-in fade-in zoom-in-95 duration-200 sm:left-auto sm:right-0 sm:max-w-none sm:origin-top-right"
+                    style={{
+                      backgroundColor: darkMode ? '#0f172a' : '#ffffff',
+                      borderColor: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.12)',
+                    }}
+                  >
                     <div className="p-1.5 flex flex-col gap-1">
                       {availableMachines.map(m => (
                         <button
@@ -254,11 +259,17 @@ export default function DashboardView(props: DashboardViewProps) {
                             setSelectedMachineId(m.id);
                             setIsDropdownOpen(false);
                           }}
-                          className={`w-full flex items-center justify-between text-left px-3 py-2.5 text-xs rounded-lg transition-all duration-200 cursor-pointer gap-2
-                            ${selectedMachineId?.toString() === m.id.toString()
-                              ? 'bg-ios-blue text-white font-bold shadow-md shadow-ios-blue/20'
-                              : 'bg-white text-slate-900 hover:bg-slate-100 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800 font-bold'
-                            }`}
+                          className={`w-full flex items-center justify-between text-left px-3 py-2.5 text-xs rounded-lg transition-all duration-200 cursor-pointer gap-2 font-bold ${
+                            selectedMachineId?.toString() === m.id.toString()
+                              ? 'bg-ios-blue text-white shadow-md shadow-ios-blue/20'
+                              : 'hover:brightness-95'
+                          }`}
+                          style={selectedMachineId?.toString() === m.id.toString()
+                            ? undefined
+                            : {
+                              backgroundColor: darkMode ? '#0f172a' : '#ffffff',
+                              color: darkMode ? '#f8fafc' : '#0f172a',
+                            }}
                         >
                           <span className="hidden md:inline truncate">{m.name}</span>
                           <span className="inline md:hidden truncate">{m.tag || m.name}</span>
@@ -274,13 +285,21 @@ export default function DashboardView(props: DashboardViewProps) {
 
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="theme-btn shrink-0"
+            className="theme-btn header-control-surface shrink-0"
           >
             {darkMode ? <Sun size={24} className="text-yellow-400" /> : <Moon size={24} className="text-slate-600" />}
             <span className="theme-btn-text">{darkMode ? 'Dark' : 'Light'}</span>
           </button>
           <div className="flex shrink-0 items-center gap-2">
-            <span className="hidden max-w-32 truncate text-xs font-semibold opacity-70 lg:block">{user?.nome}</span>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/machines')}
+              className="header-control-surface flex h-12 max-w-36 items-center gap-2 rounded-full px-3 text-xs font-bold transition-colors dark:bg-white/5 dark:text-slate-100 dark:hover:bg-white/10 sm:px-4"
+              title="Abrir painel de gestão"
+            >
+              <UserRound size={16} className="shrink-0" />
+              <span className="truncate">{user?.nome}</span>
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -289,9 +308,10 @@ export default function DashboardView(props: DashboardViewProps) {
               }}
               aria-label="Sair da plataforma"
               title="Sair"
-              className="rounded-xl border border-black/10 p-2 opacity-70 transition-opacity hover:opacity-100 dark:border-white/10"
+              className="expand-btn header-control-surface h-12 w-[60px] shrink-0 p-0 text-slate-700 hover:w-[160px] dark:text-slate-200"
             >
               <LogOut size={18} />
+              <span className="expand-btn-text">Sair</span>
             </button>
           </div>
         </div>
@@ -299,17 +319,18 @@ export default function DashboardView(props: DashboardViewProps) {
 
       {/* Tabs Navigation (Horizontal) */}
       <div className="mx-auto mb-8 w-full max-w-7xl sm:mb-12">
-        <div className={`mx-auto flex w-full gap-1 rounded-2xl border p-1.5 shadow-lg backdrop-blur-md sm:w-fit sm:gap-2 ${darkMode
+        <div className={`mx-auto flex w-full gap-1 rounded-full border p-1.5 shadow-lg backdrop-blur-md sm:w-fit sm:gap-2 ${darkMode
           ? 'bg-black/10 border-white/5 shadow-black/40'
           : 'bg-white/80 border-black/10 shadow-black/5'
           }`}>
           <button
             onClick={() => setActiveTab('monitoring')}
-            className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-xl border px-1 py-2.5 text-[9px] font-bold leading-none tracking-tight transition-all duration-300 sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-xs lg:px-6 lg:text-sm
+            className={`flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-full border border-transparent px-1 py-2.5 text-[9px] font-bold leading-none tracking-tight transition-all duration-300 sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-xs lg:px-6 lg:text-sm
               ${activeTab === 'monitoring'
-                ? 'bg-gradient-to-r from-[#2B0A5C] to-[#063A63] text-white shadow-lg shadow-purple-900/10 border-black/50' : darkMode
-                  ? 'bg-white/5 border-white/5 hover:bg-white/15 text-slate-200'
-                  : 'bg-black/5 border-black/5 hover:bg-black/10 text-slate-800'
+                ? 'bg-ios-blue text-white shadow-md shadow-ios-blue/20'
+                : darkMode
+                  ? 'bg-white/5 hover:bg-white/15 text-slate-200'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
               }`}
           >
             <TrendingUp size={14} className="shrink-0 sm:size-4" />
@@ -318,12 +339,12 @@ export default function DashboardView(props: DashboardViewProps) {
           </button>
           <button
             onClick={() => setActiveTab('reports')}
-            className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-xl border px-1 py-2.5 text-[9px] font-bold leading-none tracking-tight transition-all duration-300 sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-xs lg:px-6 lg:text-sm
+            className={`flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-full border border-transparent px-1 py-2.5 text-[9px] font-bold leading-none tracking-tight transition-all duration-300 sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-xs lg:px-6 lg:text-sm
               ${activeTab === 'reports'
-                ? 'bg-gradient-to-r from-[#2B0A5C] to-[#063A63] text-white shadow-lg shadow-purple-900/10 border-black/50'
+                ? 'bg-ios-blue text-white shadow-md shadow-ios-blue/20'
                 : darkMode
-                  ? 'bg-white/5 border-white/5 hover:bg-white/15 text-slate-200'
-                  : 'bg-black/5 border-black/5 hover:bg-black/10 text-slate-800'
+                  ? 'bg-white/5 hover:bg-white/15 text-slate-200'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
               }`}
           >
             <BarChart3 size={14} className="shrink-0 sm:size-4" />
@@ -332,12 +353,12 @@ export default function DashboardView(props: DashboardViewProps) {
           </button>
           <button
             onClick={() => setActiveTab('maintenance')}
-            className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-xl border px-1 py-2.5 text-[9px] font-bold leading-none tracking-tight transition-all duration-300 sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-xs lg:px-6 lg:text-sm
+            className={`relative flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-full border border-transparent px-1 py-2.5 text-[9px] font-bold leading-none tracking-tight transition-all duration-300 sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-xs lg:px-6 lg:text-sm
               ${activeTab === 'maintenance'
-                ? 'bg-gradient-to-r from-[#2B0A5C] to-[#063A63] text-white shadow-lg shadow-purple-900/10 border-black/50'
+                ? 'bg-ios-blue text-white shadow-md shadow-ios-blue/20'
                 : darkMode
-                  ? 'bg-white/5 border-white/5 hover:bg-white/15 text-slate-200'
-                  : 'bg-black/5 border-black/5 hover:bg-black/10 text-slate-800'
+                  ? 'bg-white/5 hover:bg-white/15 text-slate-200'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
               }`}
           >
             <Wrench size={14} className="shrink-0 sm:size-4" />
