@@ -11,12 +11,11 @@ import UptimeDailyChart from './UptimeDailyChart';
 import LiveMetricChart from './LiveMetricChart';
 import StatusIndicator from './StatusIndicator';
 import Grainient from './Grainient';
-import logo from '../assets/hero.png';
+import blackLogo from '../assets/fonte preta.png';
+import whiteLogo from '../assets/fonte branca.png';
 import { useNavigate } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { useAuth } from '../auth/useAuth';
-
-const BRAND_GRADIENT = 'linear-gradient(135deg, #812FFF 0%, #5CE1E6 100%)';
 
 interface DashboardViewProps {
   darkMode: boolean;
@@ -207,21 +206,15 @@ export default function DashboardView(props: DashboardViewProps) {
 
       {/* Header */}
       <header className="mx-auto mb-6 flex max-w-7xl flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
-        <div className="flex min-w-0 items-center gap-3 sm:gap-6">
+        <div className="flex min-w-0 flex-col items-center gap-1">
           <div className="relative group">
             <img
-              src={logo}
-              alt="Logo"
-              className={`h-10 w-10 shrink-0 object-contain transition-all duration-700 sm:h-14 sm:w-14 ${darkMode ? 'brightness-125 contrast-125 drop-shadow-[0_0_15px_rgba(129,47,255,0.6)]' : 'brightness-100'}`}
+              src={darkMode ? whiteLogo : blackLogo}
+              alt="Simple IHM"
+              className="h-20 w-28 shrink-0 object-contain transition-all duration-700 sm:h-24 sm:w-36"
             />
-            <div className="absolute inset-0 bg-ios-blue/30 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
-          <div className="flex min-w-0 flex-col">
-            <h1 className="whitespace-nowrap text-2xl font-black tracking-tighter leading-none sm:text-3xl">
-              Simple <span className="bg-clip-text text-transparent italic pr-1" style={{ backgroundImage: BRAND_GRADIENT }}>IHM</span>
-            </h1>
-            <p className="mt-1 hidden whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.14em] opacity-50 sm:block sm:text-[10px] sm:tracking-[0.2em]">Industrial Control System</p>
-          </div>
+          <p className="whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.14em] opacity-50 sm:text-[12px] sm:tracking-[0.2em]">Human Machine Interface</p>
         </div>
         <div className="flex w-full min-w-0 items-center justify-between gap-2 md:w-auto md:justify-end md:gap-4">
           <StatusIndicator isConnected={isSocketConnected} />
@@ -230,7 +223,7 @@ export default function DashboardView(props: DashboardViewProps) {
             <div className="relative">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="header-control-surface flex h-12 min-w-0 max-w-[calc(100vw-7rem)] shrink items-center gap-2 whitespace-nowrap rounded-full px-3 text-sm font-bold backdrop-blur-xl outline-none transition-all dark:bg-white/5 dark:text-white dark:hover:bg-white/10 sm:max-w-none sm:px-4"
+                className="header-control-surface flex h-12 min-w-0 max-w-[calc(100vw-7rem)] shrink items-center gap-2 whitespace-nowrap rounded-full px-3 text-xs font-bold backdrop-blur-xl outline-none transition-all dark:bg-white/5 dark:hover:bg-white/10 sm:max-w-none sm:px-4"
               >
                 <span className="hidden max-w-56 truncate md:inline">
                   {availableMachines.find(m => m.id.toString() === selectedMachineId?.toString())?.name || 'Selecione o dispositivo'}
@@ -294,7 +287,7 @@ export default function DashboardView(props: DashboardViewProps) {
             <button
               type="button"
               onClick={() => navigate('/admin/machines')}
-              className="header-control-surface flex h-12 max-w-36 items-center gap-2 rounded-full px-3 text-xs font-bold transition-colors dark:bg-white/5 dark:text-slate-100 dark:hover:bg-white/10 sm:px-4"
+              className="header-control-surface flex h-12 max-w-36 items-center gap-2 rounded-full px-3 text-xs font-bold transition-colors dark:bg-white/5 dark:hover:bg-white/10 sm:px-4"
               title="Abrir painel de gestão"
             >
               <UserRound size={16} className="shrink-0" />
@@ -308,7 +301,7 @@ export default function DashboardView(props: DashboardViewProps) {
               }}
               aria-label="Sair da plataforma"
               title="Sair"
-              className="expand-btn header-control-surface h-12 w-[60px] shrink-0 p-0 text-slate-700 hover:w-[160px] dark:text-slate-200"
+              className="expand-btn header-control-surface h-12 w-[60px] shrink-0 p-0 hover:w-[160px]"
             >
               <LogOut size={18} />
               <span className="expand-btn-text">Sair</span>
@@ -333,7 +326,7 @@ export default function DashboardView(props: DashboardViewProps) {
                   : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
               }`}
           >
-            <TrendingUp size={14} className="shrink-0 sm:size-4" />
+            <TrendingUp size={16} className="shrink-0" />
             <span className="sm:hidden">Monitorar</span>
             <span className="hidden sm:inline">Monitoramento</span>
           </button>
@@ -347,7 +340,7 @@ export default function DashboardView(props: DashboardViewProps) {
                   : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
               }`}
           >
-            <BarChart3 size={14} className="shrink-0 sm:size-4" />
+            <BarChart3 size={16} className="shrink-0" />
             <span className="sm:hidden">Relatórios</span>
             <span className="hidden sm:inline">Relatórios &amp; Rankings</span>
           </button>
@@ -361,7 +354,7 @@ export default function DashboardView(props: DashboardViewProps) {
                   : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
               }`}
           >
-            <Wrench size={14} className="shrink-0 sm:size-4" />
+            <Wrench size={16} className="shrink-0" />
             <span className="sm:hidden">Manut.</span>
             <span className="hidden sm:inline">Manutenção Preventiva</span>
             {overdueCount > 0 && (

@@ -201,6 +201,9 @@
   .expand-btn-text {
     @apply text-[10px] font-black uppercase tracking-[0.2em] opacity-0 scale-90 transition-all duration-500 ease-in-out whitespace-nowrap overflow-hidden;
     max-width: 0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
   }
 
   .theme-btn:hover .theme-btn-text,
@@ -213,6 +216,8 @@
     background: rgba(255, 255, 255, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.5);
     color: #475569;
+    font-size: 12px;
+    font-weight: 700;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   }
 
@@ -222,6 +227,9 @@
 
   [data-theme="dark"] .header-control-surface {
     border: 0;
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 700;
   }
 
 }
