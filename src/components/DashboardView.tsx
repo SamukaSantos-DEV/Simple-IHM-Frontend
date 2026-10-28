@@ -22,6 +22,7 @@ interface DashboardViewProps {
   setDarkMode: (val: boolean) => void;
   status: boolean;
   isSocketConnected: boolean;
+  isServerSignal?: boolean;
   uptime: string;
   downtime: string;
   power: number;
@@ -48,6 +49,7 @@ export default function DashboardView(props: DashboardViewProps) {
     darkMode, setDarkMode,
     status,
     isSocketConnected,
+    isServerSignal = true,
     uptime, downtime, power, voltage, current,
     vibrationHz, vibrationStructural,
     vibrationData, liveValueData, historyData, dailyUptimeData,
@@ -217,13 +219,13 @@ export default function DashboardView(props: DashboardViewProps) {
           <p className="whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.14em] opacity-50 sm:text-[12px] sm:tracking-[0.2em]">Human Machine Interface</p>
         </div>
         <div className="flex w-full min-w-0 items-center justify-between gap-2 md:w-auto md:justify-end md:gap-4">
-          <StatusIndicator isConnected={isSocketConnected} />
+          <StatusIndicator isConnected={isSocketConnected} isServerSignal={isServerSignal} />
 
           {availableMachines && availableMachines.length > 0 && setSelectedMachineId && (
             <div className="relative">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="header-control-surface flex h-12 min-w-0 max-w-[calc(100vw-7rem)] shrink items-center gap-2 whitespace-nowrap rounded-full px-3 text-xs font-bold backdrop-blur-xl outline-none transition-all dark:bg-white/5 dark:hover:bg-white/10 sm:max-w-none sm:px-4"
+                className="header-control-surface flex h-12 min-w-0 max-w-[calc(100vw-7rem)] shrink items-center gap-2 whitespace-nowrap rounded-full px-4 text-xs font-bold backdrop-blur-xl outline-none transition-all dark:bg-white/5 dark:hover:bg-white/10 sm:max-w-none sm:px-4"
               >
                 <span className="hidden max-w-56 truncate md:inline">
                   {availableMachines.find(m => m.id.toString() === selectedMachineId?.toString())?.name || 'Selecione o dispositivo'}
@@ -287,7 +289,7 @@ export default function DashboardView(props: DashboardViewProps) {
             <button
               type="button"
               onClick={() => navigate('/admin/machines')}
-              className="header-control-surface flex h-12 max-w-36 items-center gap-2 rounded-full px-3 text-xs font-bold transition-colors dark:bg-white/5 dark:hover:bg-white/10 sm:px-4"
+              className="header-control-surface flex h-12 max-w-36 items-center gap-2 rounded-full px-4 text-xs font-bold transition-colors dark:bg-white/5 dark:hover:bg-white/10 sm:px-4"
               title="Abrir painel de gestão"
             >
               <UserRound size={16} className="shrink-0" />

@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 import { AuthProvider, RequireAuth, RequireProfile } from './auth/AuthContext';
 import { useAuth } from './auth/useAuth';
 import { apiFetch } from './api';
+import { getAuthToken } from './auth/session';
 import DashboardView from './components/DashboardView';
 import ConnectionStatus from './components/ConnectionStatus';
 import LoginPage from './components/admin/LoginPage';
@@ -14,7 +15,17 @@ import FuncionariosPage from './components/admin/FuncionariosPage';
 import AuditPage from './components/admin/AuditPage';
 import { API_BASE_URL } from './config';
 
-const socket = io(API_BASE_URL, { autoConnect: false });
+const socket = io(API_BASE_URL, {
+  autoConnect: false,
+  transports: ['websocket', 'polling'],
+  reconnection: true,
+  reconnectionAttempts: 1,
+  reconnectionDelay: 5000,
+  timeout: 4000,
+  extraHeaders: {
+    'ngrok-skip-browser-warning': 'true',
+  },
+});
 
 interface MachineTelemetry {
   uptimeSeconds: number;
@@ -56,7 +67,7 @@ function AppContent() {
   });
   
   const [status, setStatusState] = useState(true);
-  const [isSocketConnected, setIsSocketConnected] = useState(true);
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [isInternetConnected, setIsInternetConnected] = useState(() => {
     return typeof navigator !== 'undefined' ? navigator.onLine : true;
   });
@@ -92,31 +103,6 @@ function AppContent() {
   const [productiveRanking, setProductiveRanking] = useState<{ name: string; efficiency: number }[]>([]);
   const [stopsRanking, setStopsRanking] = useState<{ name: string; stops: number }[]>([]);
   const [shiftProductivity, setShiftProductivity] = useState<{ shift: string; productivity: number }[]>([]);
-
-  const setSelectedMachineId = (id: number | string) => {
-    setSelectedMachineIdState(id);
-    selectedMachineIdRef.current = id;
-    
-    // Atualiza os estados instantaneamente com os dados da máquina no map
-    if (telemetryMap[id]) {
-      const tel = telemetryMap[id];
-      setStatusState(tel.status);
-      setUptime(formatTime(tel.uptimeSeconds));
-      setDowntime(formatTime(tel.downtimeSeconds));
-      setPower(tel.power);
-      setVoltage(tel.voltage);
-      setCurrent(tel.current);
-      setVibrationHz(tel.vibrationHz);
-      setVibrationStructural(tel.vibrationStructural);
-      setVibrationData(tel.vibrationData);
-      setLiveValueData(tel.liveValueData);
-      setHistoryData(tel.historyData);
-    }
-  };
-
-  useEffect(() => {
-    availableMachinesRef.current = availableMachines;
-  }, [availableMachines]);
 
   const formatTime = (totalSeconds: number): string => {
     const hrs = Math.floor(totalSeconds / 3600);
@@ -158,6 +144,173 @@ function AppContent() {
       historyData: hist,
       stopsCount: stops
     };
+  };
+
+  const applyTelemetryData = (data: any) => {
+    if (!data || typeof data !== 'object') return;
+
+    // Normalização do identificador da máquina
+    const rawId = data.maquina_id ?? data.machine_id ?? data.id;
+    const currentSelectedId = selectedMachineIdRef.current;
+    const targetId = rawId !== undefined && rawId !== null ? rawId : currentSelectedId;
+    if (targetId === null || targetId === undefined) return;
+
+    // Normalização de status
+    let isAtiva: boolean | undefined = undefined;
+    if (typeof data.status_atual === 'string') {
+      isAtiva = data.status_atual.toLowerCase() === 'ativa';
+    } else if (typeof data.status === 'boolean') {
+      isAtiva = data.status;
+    } else if (typeof data.status === 'number') {
+      isAtiva = data.status === 1;
+    }
+
+    // Normalização de métricas (suporte para chaves em português e inglês)
+    const rawVibration = data.vibracao_rms ?? data.vibration ?? data.vibrationStructural;
+    const vibration = rawVibration !== undefined ? Number(rawVibration) : undefined;
+
+    const rawFrequency = data.frequencia_hz ?? data.frequency ?? data.vibrationHz;
+    const frequency = rawFrequency !== undefined ? Number(rawFrequency) : undefined;
+
+    const rawVoltage = data.tensao_volt ?? data.voltage;
+    const voltageVal = rawVoltage !== undefined ? Number(rawVoltage) : undefined;
+
+    const rawCurrent = data.corrente_ampere ?? data.current;
+    const currentVal = rawCurrent !== undefined ? Number(rawCurrent) : undefined;
+
+    const rawPower = data.potencia_watt ?? data.power;
+    const powerVal = rawPower !== undefined
+      ? Number(rawPower)
+      : (voltageVal !== undefined && currentVal !== undefined ? voltageVal * currentVal : undefined);
+
+    // 1. Atualizar lista de máquinas se houver metadados novos
+    if (data.nome_maquina || data.tag_maquina) {
+      setAvailableMachines(prev => {
+        const newList = [...prev];
+        const existingIndex = newList.findIndex(x => x.id.toString() === targetId.toString());
+        const name = data.nome_maquina 
+          ? `${data.tag_maquina ? data.tag_maquina + ' - ' : ''}${data.nome_maquina}`
+          : (data.tag_maquina || `Máquina ${targetId}`);
+        const tag = data.tag_maquina || `M${targetId}`;
+
+        if (existingIndex === -1) {
+          newList.push({ id: targetId, name, tag });
+        }
+        return newList;
+      });
+    }
+
+    // 2. Atualizar histórico de logs de telemetria
+    const readingTime = data.momento_da_leitura || new Date().toISOString();
+    setTelemetryLogs(prev => {
+      const exists = prev.some(log => log.maquina_id === targetId && log.momento_da_leitura === readingTime);
+      if (!exists) {
+        const maquinaRel = availableMachinesRef.current.find(x => x.id.toString() === targetId.toString());
+        const name = maquinaRel ? maquinaRel.name : (data.nome_maquina || `Máquina ${targetId}`);
+        const newLog = {
+          maquina_id: targetId,
+          name,
+          status_atual: isAtiva !== undefined ? (isAtiva ? 'Ativa' : 'Inativa') : (data.status_atual || 'Ativa'),
+          vibracao_rms: vibration ?? 0,
+          corrente_ampere: currentVal ?? 0,
+          tensao_volt: voltageVal ?? 0,
+          potencia_watt: powerVal ?? 0,
+          frequencia_hz: frequency ?? 0,
+          momento_da_leitura: readingTime,
+        };
+        return [newLog, ...prev].slice(0, 25);
+      }
+      return prev;
+    });
+
+    // 3. Atualizar o telemetryMap
+    setTelemetryMap(prev => {
+      const prevTel = prev[targetId] ?? initTelemetryForMachine(targetId);
+      const nextStatus = isAtiva !== undefined ? isAtiva : prevTel.status;
+      const nextVib = vibration !== undefined ? vibration : prevTel.vibrationStructural;
+      const nextFreq = nextStatus ? (frequency !== undefined ? frequency : (prevTel.vibrationHz || 60)) : 0;
+      const nextVolt = voltageVal !== undefined ? voltageVal : prevTel.voltage;
+      const nextCurr = currentVal !== undefined ? currentVal : prevTel.current;
+      const nextPow = powerVal !== undefined ? powerVal : prevTel.power;
+
+      const nextVibrationData = [...prevTel.vibrationData.slice(-19), nextVib];
+      const nextLiveValueData = [...prevTel.liveValueData.slice(-29), nextFreq];
+
+      let nextHistoryData = prevTel.historyData;
+      const timeStr = new Date(readingTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      if (prevTel.historyData.length === 0 || prevTel.status !== nextStatus) {
+        nextHistoryData = [...prevTel.historyData.slice(-19), { time: timeStr, status: nextStatus ? 1 : 0 }];
+      }
+
+      const updatedTel: MachineTelemetry = {
+        ...prevTel,
+        status: nextStatus,
+        power: nextPow,
+        voltage: nextVolt,
+        current: nextCurr,
+        vibrationHz: nextFreq,
+        vibrationStructural: nextVib,
+        vibrationData: nextVibrationData,
+        liveValueData: nextLiveValueData,
+        historyData: nextHistoryData,
+        isNgrok: true,
+      };
+
+      // 4. Sincronizar os estados visuais da máquina selecionada se for o alvo ativo
+      if (currentSelectedId !== null && currentSelectedId.toString() === targetId.toString()) {
+        setStatusState(updatedTel.status);
+        setPower(updatedTel.power);
+        setVoltage(updatedTel.voltage);
+        setCurrent(updatedTel.current);
+        setVibrationHz(updatedTel.vibrationHz);
+        setVibrationStructural(updatedTel.vibrationStructural);
+        setVibrationData(updatedTel.vibrationData);
+        setLiveValueData(updatedTel.liveValueData);
+        setHistoryData(updatedTel.historyData);
+      }
+
+      return {
+        ...prev,
+        [targetId]: updatedTel,
+      };
+    });
+  };
+
+  const setSelectedMachineId = async (id: number | string) => {
+    setSelectedMachineIdState(id);
+    selectedMachineIdRef.current = id;
+    
+    // Notifica backend se necessário via WebSocket
+    if (socket.connected) {
+      socket.emit('select_machine', { machine_id: id });
+    }
+
+    // Atualiza os estados instantaneamente com os dados da máquina no map se já existirem
+    if (telemetryMap[id]) {
+      const tel = telemetryMap[id];
+      setStatusState(tel.status);
+      setUptime(formatTime(tel.uptimeSeconds));
+      setDowntime(formatTime(tel.downtimeSeconds));
+      setPower(tel.power);
+      setVoltage(tel.voltage);
+      setCurrent(tel.current);
+      setVibrationHz(tel.vibrationHz);
+      setVibrationStructural(tel.vibrationStructural);
+      setVibrationData(tel.vibrationData);
+      setLiveValueData(tel.liveValueData);
+      setHistoryData(tel.historyData);
+    } else {
+      // Carga inicial via HTTP caso a máquina selecionada ainda não tenha dados no map
+      try {
+        const resp = await apiFetch(`/status-maquinas/${id}`);
+        if (resp.ok) {
+          const m = await resp.json();
+          if (m) applyTelemetryData(m);
+        }
+      } catch (e) {
+        console.warn(`Não foi possível carregar status inicial da máquina ${id}:`, e);
+      }
+    }
   };
 
   const dailyUptimeData = [
@@ -222,6 +375,12 @@ function AppContent() {
     let activeController: AbortController | null = null;
 
     const checkApi = async () => {
+      // Se o WebSocket já estiver conectado, o servidor está com sinal ativo
+      if (socket.connected) {
+        setIsServerSignal(true);
+        return;
+      }
+
       activeController?.abort();
       const controller = new AbortController();
       activeController = controller;
@@ -243,7 +402,7 @@ function AppContent() {
     };
 
     void checkApi();
-    const intervalId = window.setInterval(() => void checkApi(), 5000);
+    const intervalId = window.setInterval(() => void checkApi(), 10000);
     return () => {
       window.clearInterval(intervalId);
       activeController?.abort();
@@ -271,38 +430,37 @@ function AppContent() {
           // Caso contrário, simulamos os dados se movimentando
           let updatedTel = { ...currentTel };
           
-          if (currentTel.isNgrok) {
-            // Se for do ngrok, apenas incrementa tempos e mantém os dados reais do GET
+          // Se for do ngrok ou se o WebSocket estiver conectado, preserva dados reais e apenas incrementa contadores de tempo
+          if (currentTel.isNgrok || isSocketConnected) {
             if (currentTel.status) {
               updatedTel.uptimeSeconds += 1;
             } else {
               updatedTel.downtimeSeconds += 1;
             }
           } else if (currentTel.status) {
-            // Incrementa produção
+            // Modo offline/sem backend: simula dados variando
             updatedTel.uptimeSeconds += 1;
-            // Flutua valores
             updatedTel.voltage = 217 + Math.random() * 6; // 217 a 223 V
             updatedTel.current = Math.max(0.5, currentTel.current + (Math.random() - 0.5) * 0.2);
             updatedTel.power = updatedTel.voltage * updatedTel.current;
             updatedTel.vibrationHz = Math.max(1, 55 + Math.random() * 10);
             updatedTel.vibrationStructural = Math.max(0.1, currentTel.vibrationStructural + (Math.random() - 0.5) * 0.15);
+            updatedTel.vibrationData = [...currentTel.vibrationData.slice(-19), updatedTel.vibrationStructural];
+            updatedTel.liveValueData = [...currentTel.liveValueData.slice(-29), updatedTel.vibrationHz];
           } else {
-            // Incrementa parado
+            // Modo offline parado
             updatedTel.downtimeSeconds += 1;
             updatedTel.voltage = Math.random() > 0.95 ? 0 : 220; // Standby
             updatedTel.current = 0.1;
             updatedTel.power = updatedTel.voltage * updatedTel.current;
             updatedTel.vibrationHz = 0;
             updatedTel.vibrationStructural = 0.05 + Math.random() * 0.02;
+            updatedTel.vibrationData = [...currentTel.vibrationData.slice(-19), updatedTel.vibrationStructural];
+            updatedTel.liveValueData = [...currentTel.liveValueData.slice(-29), updatedTel.vibrationHz];
           }
 
-          // Atualiza vetores de gráfico
-          updatedTel.vibrationData = [...currentTel.vibrationData.slice(-19), updatedTel.vibrationStructural];
-          updatedTel.liveValueData = [...currentTel.liveValueData.slice(-29), updatedTel.vibrationHz];
-
-          // Adiciona histórico a cada 5 segundos
-          if (updatedTel.uptimeSeconds % 5 === 0) {
+          // Adiciona histórico a cada 5 segundos se não tiver socket conectado
+          if (!isSocketConnected && updatedTel.uptimeSeconds % 5 === 0) {
             const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             updatedTel.historyData = [...currentTel.historyData.slice(-19), { time: timeNow, status: updatedTel.status ? 1 : 0 }];
           }
@@ -312,17 +470,19 @@ function AppContent() {
 
           // Se for a selecionada, reflete nos estados individuais imediatamente para renderizar
           if (isSelected) {
-            setStatusState(updatedTel.status);
             setUptime(formatTime(updatedTel.uptimeSeconds));
             setDowntime(formatTime(updatedTel.downtimeSeconds));
-            setPower(updatedTel.power);
-            setVoltage(updatedTel.voltage);
-            setCurrent(updatedTel.current);
-            setVibrationHz(updatedTel.vibrationHz);
-            setVibrationStructural(updatedTel.vibrationStructural);
-            setVibrationData(updatedTel.vibrationData);
-            setLiveValueData(updatedTel.liveValueData);
-            setHistoryData(updatedTel.historyData);
+            if (!currentTel.isNgrok && !isSocketConnected) {
+              setStatusState(updatedTel.status);
+              setPower(updatedTel.power);
+              setVoltage(updatedTel.voltage);
+              setCurrent(updatedTel.current);
+              setVibrationHz(updatedTel.vibrationHz);
+              setVibrationStructural(updatedTel.vibrationStructural);
+              setVibrationData(updatedTel.vibrationData);
+              setLiveValueData(updatedTel.liveValueData);
+              setHistoryData(updatedTel.historyData);
+            }
           }
         });
 
@@ -370,12 +530,12 @@ function AppContent() {
     return () => clearInterval(simulationInterval);
   }, [availableMachines]);
 
-  // Carregar máquinas e manutenções preventivas do servidor e ngrok
+  // Carga inicial única do servidor e conexão WebSocket para telemetria em tempo real (sem polling)
   useEffect(() => {
     if (!authenticatedUserId) return;
 
-    const fetchAllData = async () => {
-      // 1. Carregar máquinas
+    const fetchInitialData = async () => {
+      // 1. Carregar lista de máquinas
       try {
         const localResponse = await apiFetch('/maquinas');
         if (localResponse.ok) {
@@ -418,122 +578,21 @@ function AppContent() {
         }
       }
 
-      // Tenta puxar do ngrok também se disponível e junta os dados
+      // Carga inicial pontual do status da máquina ativa para exibição imediata
       const activeId = selectedMachineIdRef.current;
       if (activeId !== null) {
         try {
-          const ngrokResponse = await apiFetch(`/status-maquinas/${activeId}`);
-          if (ngrokResponse.ok) {
-            const m = await ngrokResponse.json();
-            if (m && m.maquina_id !== undefined) {
-              // 1. Atualizar a lista de máquinas se necessário com o nome/tag retornado
-              setAvailableMachines(prev => {
-                const newList = [...prev];
-                const id = m.maquina_id;
-                const existingIndex = newList.findIndex(x => x.id.toString() === id.toString());
-                if (existingIndex === -1) {
-                  const name = m.nome_maquina 
-                    ? `${m.tag_maquina ? m.tag_maquina + ' - ' : ''}${m.nome_maquina}`
-                    : (m.tag_maquina || `Máquina ${id}`);
-                  const tag = m.tag_maquina || `M${id}`;
-                  newList.push({ id, name, tag });
-                }
-                return newList;
-              });
-
-              // 1.5. Atualizar o histórico de logs de telemetria
-              setTelemetryLogs(prev => {
-                const exists = prev.some(log => log.maquina_id === m.maquina_id && log.momento_da_leitura === m.momento_da_leitura);
-                if (!exists) {
-                  const maquinaRel = availableMachinesRef.current.find(x => x.id.toString() === m.maquina_id.toString());
-                  const name = maquinaRel ? maquinaRel.name : (m.nome_maquina || `Máquina ${m.maquina_id}`);
-                  const newLog = {
-                    maquina_id: m.maquina_id,
-                    name,
-                    status_atual: m.status_atual || 'Inativa',
-                    vibracao_rms: m.vibracao_rms || 0,
-                    corrente_ampere: m.corrente_ampere || 0,
-                    tensao_volt: m.tensao_volt || 0,
-                    potencia_watt: m.potencia_watt || 0,
-                    frequencia_hz: m.frequencia_hz || 0,
-                    momento_da_leitura: m.momento_da_leitura
-                  };
-                  const combined = [newLog, ...prev];
-                  return combined.slice(0, 25);
-                }
-                return prev;
-              });
-
-              // 2. Atualizar a telemetria com os dados do ngrok para essa máquina específica
-              setTelemetryMap(prev => {
-                const nextMap = { ...prev };
-                const id = m.maquina_id;
-                const isAtiva = m.status_atual?.toLowerCase() === 'ativa';
-
-                if (!nextMap[id]) {
-                  const initTelemetry = initTelemetryForMachine(id);
-                  nextMap[id] = {
-                    ...initTelemetry,
-                    status: isAtiva,
-                    power: m.potencia_watt ?? initTelemetry.power,
-                    voltage: m.tensao_volt ?? initTelemetry.voltage,
-                    current: m.corrente_ampere ?? initTelemetry.current,
-                    vibrationHz: m.frequencia_hz ?? initTelemetry.vibrationHz,
-                    vibrationStructural: m.vibracao_rms ?? initTelemetry.vibrationStructural,
-                    isNgrok: true,
-                  };
-                } else {
-                  const currentTel = nextMap[id];
-                  const nextVibrationData = [...currentTel.vibrationData.slice(-19), m.vibracao_rms ?? 0];
-                  const nextLiveValueData = [...currentTel.liveValueData.slice(-29), m.frequencia_hz ?? 0];
-                  
-                  let nextHistoryData = currentTel.historyData;
-                  const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                  if (currentTel.historyData.length === 0 || currentTel.status !== isAtiva) {
-                    nextHistoryData = [...currentTel.historyData.slice(-19), { time: timeNow, status: isAtiva ? 1 : 0 }];
-                  }
-
-                  nextMap[id] = {
-                    ...currentTel,
-                    status: isAtiva,
-                    power: m.potencia_watt ?? currentTel.power,
-                    voltage: m.tensao_volt ?? currentTel.voltage,
-                    current: m.corrente_ampere ?? currentTel.current,
-                    vibrationHz: m.frequencia_hz ?? currentTel.vibrationHz,
-                    vibrationStructural: m.vibracao_rms ?? currentTel.vibrationStructural,
-                    vibrationData: nextVibrationData,
-                    liveValueData: nextLiveValueData,
-                    historyData: nextHistoryData,
-                    isNgrok: true,
-                  };
-                }
-
-                // Sincronizar o estado ativo com a máquina selecionada atual
-                if (nextMap[id]) {
-                  const tel = nextMap[id];
-                  setStatusState(tel.status);
-                  setUptime(formatTime(tel.uptimeSeconds));
-                  setDowntime(formatTime(tel.downtimeSeconds));
-                  setPower(tel.power);
-                  setVoltage(tel.voltage);
-                  setCurrent(tel.current);
-                  setVibrationHz(tel.vibrationHz);
-                  setVibrationStructural(tel.vibrationStructural);
-                  setVibrationData(tel.vibrationData);
-                  setLiveValueData(tel.liveValueData);
-                  setHistoryData(tel.historyData);
-                }
-
-                return nextMap;
-              });
-            }
+          const initialStatusResponse = await apiFetch(`/status-maquinas/${activeId}`);
+          if (initialStatusResponse.ok) {
+            const m = await initialStatusResponse.json();
+            if (m) applyTelemetryData(m);
           }
         } catch (e) {
-          console.warn("ngrok offline ou indisponível.");
+          console.warn("Status inicial HTTP indisponível.");
         }
       }
 
-      // 2. Carregar manutenções preventivas
+      // 2. Carregar manutenções preventivas (carga inicial)
       try {
         const maintenanceResponse = await apiFetch('/manutencoes');
         if (maintenanceResponse.ok) {
@@ -563,47 +622,73 @@ function AppContent() {
       }
     };
 
-    fetchAllData();
-    const syncInterval = setInterval(fetchAllData, 8000); // Sincroniza a cada 8 segundos
+    void fetchInitialData();
 
-    socket.on('connect', () => {
+    // Configuração e conexão do WebSocket em tempo real
+    const token = getAuthToken();
+    if (token) {
+      socket.auth = { token };
+    }
+
+    const handleConnect = () => {
+      console.log('WebSocket conectado com sucesso.');
       setIsSocketConnected(true);
-    });
-
-    socket.on('disconnect', () => {
-      setIsSocketConnected(false);
-    });
-
-    socket.on('dashboard_update', (data) => {
-      // Evento do socket para dados reais do ESP32
-      const currentId = selectedMachineIdRef.current;
-      if (currentId !== null) {
-        setTelemetryMap(prev => {
-          if (!prev[currentId]) return prev;
-          const currentTel = prev[currentId];
-          const isAtiva = data.status !== undefined ? data.status : currentTel.status;
-          
-          return {
-            ...prev,
-            [currentId]: {
-              ...currentTel,
-              status: isAtiva,
-              vibrationStructural: data.vibration !== undefined ? data.vibration : currentTel.vibrationStructural,
-              vibrationHz: isAtiva ? (data.frequency !== undefined ? data.frequency : 60) : 0,
-              voltage: data.voltage !== undefined ? data.voltage : currentTel.voltage,
-              current: data.current !== undefined ? data.current : currentTel.current,
-              power: data.power !== undefined ? data.power : currentTel.power,
-            }
-          };
-        });
+      setIsServerSignal(true);
+      if (selectedMachineIdRef.current !== null) {
+        socket.emit('select_machine', { machine_id: selectedMachineIdRef.current });
       }
-    });
+    };
+
+    const handleDisconnect = (reason: string) => {
+      console.warn('WebSocket desconectado:', reason);
+      setIsSocketConnected(false);
+    };
+
+    const handleConnectError = (error: Error) => {
+      console.warn('WebSocket indisponível no servidor (modo HTTP ativo):', error.message);
+      setIsSocketConnected(false);
+      socket.disconnect();
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('connect_error', handleConnectError);
+    socket.on('dashboard_update', applyTelemetryData);
+    socket.on('telemetria', applyTelemetryData);
+    socket.on('esp32_data', applyTelemetryData);
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    // Polling de sincronização HTTP contínuo (ativo como fallback caso o WebSocket não esteja disponível)
+    const syncInterval = window.setInterval(async () => {
+      if (socket.connected) return; // Elimina requisições periódicas caso o WebSocket esteja conectado
+
+      const activeId = selectedMachineIdRef.current;
+      if (activeId !== null) {
+        try {
+          const resp = await apiFetch(`/status-maquinas/${activeId}`);
+          if (resp.ok) {
+            const m = await resp.json();
+            if (m) applyTelemetryData(m);
+            setIsServerSignal(true);
+          }
+        } catch {
+          // Mantém integridade sem travar
+        }
+      }
+    }, 8000);
 
     return () => {
-      clearInterval(syncInterval);
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('dashboard_update');
+      window.clearInterval(syncInterval);
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('connect_error', handleConnectError);
+      socket.off('dashboard_update', applyTelemetryData);
+      socket.off('telemetria', applyTelemetryData);
+      socket.off('esp32_data', applyTelemetryData);
+      socket.disconnect();
     };
   }, [authenticatedUserId]);
 
@@ -627,6 +712,7 @@ function AppContent() {
                 setDarkMode={setDarkMode}
                 status={status}
                 isSocketConnected={isSocketConnected}
+                isServerSignal={isServerSignal}
                 uptime={uptime}
                 downtime={downtime}
                 power={power}
