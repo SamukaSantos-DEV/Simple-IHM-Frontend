@@ -176,7 +176,7 @@ export default function DashboardView(props: DashboardViewProps) {
   };
 
   return (
-    <div className="p-6 md:p-12 min-h-screen overflow-x-hidden">
+    <div className="p-3.5 sm:p-6 md:p-12 min-h-screen overflow-x-hidden">
       {/* Background aurora fluid effect */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <Grainient
@@ -207,33 +207,39 @@ export default function DashboardView(props: DashboardViewProps) {
       <div className="scroll-reveal-mask" />
 
       {/* Header */}
-      <header className="mx-auto mb-6 flex max-w-7xl flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
+      <header className="mx-auto mb-6 flex max-w-7xl flex-col gap-3 md:mb-8 md:flex-row md:items-center md:justify-between">
         <div className="flex min-w-0 flex-col items-center gap-1">
           <div className="relative group">
             <img
               src={darkMode ? whiteLogo : blackLogo}
               alt="Simple IHM"
-              className="h-20 w-28 shrink-0 object-contain transition-all duration-700 sm:h-24 sm:w-36"
+              className="h-16 w-24 shrink-0 object-contain transition-all duration-700 sm:h-24 sm:w-36"
             />
           </div>
-          <p className="whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.14em] opacity-50 sm:text-[12px] sm:tracking-[0.2em]">Human Machine Interface</p>
+          <h1 className="whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.14em] opacity-50 sm:text-[12px] sm:tracking-[0.2em]">Human Machine Interface</h1>
         </div>
-        <div className="flex w-full min-w-0 items-center justify-between gap-2 md:w-auto md:justify-end md:gap-4">
+        <div className="flex w-full min-w-0 items-center gap-2 sm:gap-3 md:w-auto md:justify-end md:gap-4">
           <StatusIndicator isConnected={isSocketConnected} isServerSignal={isServerSignal} />
 
           {availableMachines && availableMachines.length > 0 && setSelectedMachineId && (
-            <div className="relative">
+            <div className="relative flex-1 min-w-0 md:flex-initial md:w-auto">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="header-control-surface flex h-12 min-w-0 max-w-[calc(100vw-7rem)] shrink items-center gap-2 whitespace-nowrap rounded-full px-4 text-xs font-bold backdrop-blur-xl outline-none transition-all dark:bg-white/5 dark:hover:bg-white/10 sm:max-w-none sm:px-4"
+                className="header-control-surface flex h-10 sm:h-12 w-full min-w-0 items-center justify-between gap-2 whitespace-nowrap rounded-full px-3.5 sm:px-4 text-xs font-bold backdrop-blur-xl outline-none transition-all dark:bg-white/5 dark:hover:bg-white/10"
               >
-                <span className="hidden max-w-56 truncate md:inline">
+                <span className="hidden md:inline max-w-56 truncate">
                   {availableMachines.find(m => m.id.toString() === selectedMachineId?.toString())?.name || 'Selecione o dispositivo'}
                 </span>
-                <span className="max-w-40 truncate md:hidden">
-                  {availableMachines.find(m => m.id.toString() === selectedMachineId?.toString())?.tag || availableMachines.find(m => m.id.toString() === selectedMachineId?.toString())?.name || 'Dispositivo'}
+                <span className="md:hidden truncate">
+                  {(() => {
+                    const current = availableMachines.find(m => m.id.toString() === selectedMachineId?.toString());
+                    if (!current) return 'Dispositivo';
+                    return current.tag && current.name && current.tag !== current.name
+                      ? `${current.tag} - ${current.name}`
+                      : current.tag || current.name;
+                  })()}
                 </span>
-                <ChevronDown size={16} className={`transition-transform duration-300 shrink-0 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown size={14} className={`transition-transform duration-300 shrink-0 ${isDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {isDropdownOpen && (
@@ -278,22 +284,26 @@ export default function DashboardView(props: DashboardViewProps) {
             </div>
           )}
 
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="theme-btn header-control-surface shrink-0"
-          >
-            {darkMode ? <Sun size={24} className="text-yellow-400" /> : <Moon size={24} className="text-slate-600" />}
-            <span className="theme-btn-text">{darkMode ? 'Dark' : 'Light'}</span>
-          </button>
           <div className="flex shrink-0 items-center gap-2">
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="theme-btn header-control-surface shrink-0"
+              title={darkMode ? 'Modo claro' : 'Modo escuro'}
+              aria-label="Alternar tema"
+            >
+              {darkMode ? <Sun size={20} className="text-yellow-400 sm:w-6 sm:h-6" /> : <Moon size={20} className="text-slate-600 sm:w-6 sm:h-6" />}
+              <span className="theme-btn-text">{darkMode ? 'Dark' : 'Light'}</span>
+            </button>
+
             <button
               type="button"
               onClick={() => navigate('/admin/machines')}
-              className="header-control-surface flex h-12 max-w-36 items-center gap-2 rounded-full px-4 text-xs font-bold transition-colors dark:bg-white/5 dark:hover:bg-white/10 sm:px-4"
+              className="header-control-surface flex h-10 w-10 sm:h-12 sm:w-auto sm:max-w-36 items-center justify-center gap-2 rounded-full p-0 sm:px-4 text-xs font-bold transition-colors dark:bg-white/5 dark:hover:bg-white/10 shrink-0"
               title="Abrir painel de gestão"
+              aria-label="Painel de gestão"
             >
               <UserRound size={16} className="shrink-0" />
-              <span className="truncate">{user?.nome}</span>
+              <span className="hidden sm:inline truncate">{user?.nome}</span>
             </button>
             <button
               type="button"
@@ -303,9 +313,9 @@ export default function DashboardView(props: DashboardViewProps) {
               }}
               aria-label="Sair da plataforma"
               title="Sair"
-              className="expand-btn header-control-surface h-12 w-[60px] shrink-0 p-0 hover:w-[160px]"
+              className="expand-btn header-control-surface h-10 w-10 sm:h-12 sm:w-[60px] shrink-0 p-0 sm:hover:w-[160px]"
             >
-              <LogOut size={18} />
+              <LogOut size={16} className="sm:w-[18px] sm:h-[18px]" />
               <span className="expand-btn-text">Sair</span>
             </button>
           </div>
@@ -313,7 +323,7 @@ export default function DashboardView(props: DashboardViewProps) {
       </header>
 
       {/* Tabs Navigation (Horizontal) */}
-      <div className="mx-auto mb-8 w-full max-w-7xl sm:mb-12">
+      <nav aria-label="Abas de visualização" className="mx-auto mb-8 w-full max-w-7xl sm:mb-12">
         <div className={`mx-auto flex w-full gap-1 rounded-full border p-1.5 shadow-lg backdrop-blur-md sm:w-fit sm:gap-2 ${darkMode
           ? 'bg-black/10 border-white/5 shadow-black/40'
           : 'bg-white/80 border-black/10 shadow-black/5'
@@ -364,7 +374,7 @@ export default function DashboardView(props: DashboardViewProps) {
             )}
           </button>
         </div>
-      </div>
+      </nav>
 
       {/* Main Grid Views based on Tab */}
       <main
@@ -691,29 +701,29 @@ export default function DashboardView(props: DashboardViewProps) {
                 <h3 className="text-sm font-black uppercase tracking-widest opacity-40">Resumo de Manutenção</h3>
 
                 <div className="grid grid-cols-3 gap-2 mt-2">
-                  <div className="flex flex-col items-center bg-yellow-500/10 dark:bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-3 text-center">
+                  <div className="flex flex-col items-center bg-yellow-500/10 dark:bg-yellow-500/5  rounded-xl p-3 text-center">
                     <span className="text-lg font-black text-yellow-600 dark:text-yellow-400">{pendingCount}</span>
                     <span className="text-[8px] font-bold opacity-70">Agendadas</span>
                   </div>
-                  <div className="flex flex-col items-center bg-red-500/10 dark:bg-red-500/5 border border-red-500/20 rounded-xl p-3 text-center">
+                  <div className="flex flex-col items-center bg-red-500/10 dark:bg-red-500/5  rounded-xl p-3 text-center">
                     <span className="text-lg font-black text-ios-red">{overdueCount}</span>
                     <span className="text-[8px] font-bold opacity-70">Atrasadas</span>
                   </div>
-                  <div className="flex flex-col items-center bg-green-500/10 dark:bg-green-500/5 border border-green-500/20 rounded-xl p-3 text-center">
+                  <div className="flex flex-col items-center bg-green-500/10 dark:bg-green-500/5  rounded-xl p-3 text-center">
                     <span className="text-lg font-black text-ios-green">{completedCount}</span>
                     <span className="text-[8px] font-bold opacity-70">Concluídas</span>
                   </div>
                 </div>
 
                 {overdueCount > 0 ? (
-                  <div className="flex items-center gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl mt-4">
+                  <div className="flex items-center gap-3 p-3 bg-red-500/10 rounded-xl mt-4">
                     <AlertTriangle className="text-ios-red animate-bounce shrink-0" size={18} />
                     <p className="text-[10px] md:text-xs font-semibold text-ios-red leading-tight">
                       Atenção: Há manutenções preventivas programadas em atraso para este equipamento!
                     </p>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3 p-3 bg-green-500/10 border border-green-500/20 rounded-xl mt-4">
+                  <div className="flex items-center gap-3 p-3 bg-green-500/10 rounded-xl mt-4">
                     <ShieldCheck className="text-ios-green shrink-0" size={18} />
                     <p className="text-[10px] md:text-xs font-semibold text-ios-green leading-tight">
                       Manutenções em dia! O cronograma preventivo do equipamento está atualizado.
@@ -748,7 +758,7 @@ export default function DashboardView(props: DashboardViewProps) {
 
               {activeMaintenance.length === 0 ? (
                 <div className="text-center py-20 opacity-55 flex flex-col items-center gap-2">
-                  <Check className="text-ios-green w-10 h-10 p-2 bg-green-500/10 rounded-full border border-green-500/20" />
+                  <Check className="text-ios-green w-10 h-10 p-2 bg-green-500/10 rounded-full" />
                   <p className="text-sm font-semibold">Tudo Limpo!</p>
                   <p className="text-xs">Nenhuma manutenção preventiva cadastrada para este equipamento no momento.</p>
                 </div>
