@@ -10,12 +10,9 @@ export default function StatusIndicator({ isConnected = false, isServerSignal = 
   // Modo 1: WebSocket conectado em tempo real
   if (isConnected) {
     return (
-      <div className={`hidden md:flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-emerald-500/10 px-4 h-12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-bold shadow-sm ${className}`}>
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-        </span>
-        <span>Via WebSocket</span>
+      <div className={`hidden md:flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-emerald-500/10 px-4 h-12 text-emerald-600 dark:text-emerald-400 text-xs font-bold shadow-sm ${className}`}>
+       
+        <span>Sincronizado via WebSocket</span>
       </div>
     );
   }

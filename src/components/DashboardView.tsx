@@ -10,6 +10,7 @@ import HistoryChart from './HistoryChart';
 import UptimeDailyChart from './UptimeDailyChart';
 import LiveMetricChart from './LiveMetricChart';
 import StatusIndicator from './StatusIndicator';
+import LogoutConfirmation from './LogoutConfirmation';
 import Grainient from './Grainient';
 import blackLogo from '../assets/fonte preta.png';
 import whiteLogo from '../assets/fonte branca.png';
@@ -64,6 +65,12 @@ export default function DashboardView(props: DashboardViewProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'monitoring' | 'reports' | 'maintenance'>('monitoring');
   const [historyPeriod, setHistoryPeriod] = useState<'day' | 'week' | 'month'>('day');
+  const [isLogoutConfirmationOpen, setIsLogoutConfirmationOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   // Filtrar tarefas de manutenção para a máquina selecionada
   const activeMaintenance = maintenanceTasks.filter(t =>
@@ -307,10 +314,7 @@ export default function DashboardView(props: DashboardViewProps) {
             </button>
             <button
               type="button"
-              onClick={() => {
-                logout();
-                navigate('/login', { replace: true });
-              }}
+              onClick={() => setIsLogoutConfirmationOpen(true)}
               aria-label="Sair da plataforma"
               title="Sair"
               className="expand-btn header-control-surface h-10 w-10 sm:h-12 sm:w-[60px] shrink-0 p-0 sm:hover:w-[160px]"
@@ -811,6 +815,12 @@ export default function DashboardView(props: DashboardViewProps) {
         <p>Simple IHM Dashboard &copy; 2026 - Conexão via Bridge Local</p>
         <button onClick={() => navigate('/admin')} className="underline hover:opacity-100 transition-opacity cursor-pointer mb-16">Painel de Gestão</button>
       </footer>
+      {isLogoutConfirmationOpen && (
+        <LogoutConfirmation
+          onCancel={() => setIsLogoutConfirmationOpen(false)}
+          onConfirm={handleLogout}
+        />
+      )}
     </div>
   );
 }

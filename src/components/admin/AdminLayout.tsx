@@ -1,17 +1,20 @@
+import { useState } from 'react';
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { ArrowLeft, ClipboardList, LogOut, Wrench, Settings, Users } from 'lucide-react';
 import { useAuth } from '../../auth/useAuth';
 import blackLogo from '../../assets/fonte preta.png';
 import whiteLogo from '../../assets/fonte branca.png';
+import LogoutConfirmation from '../LogoutConfirmation';
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [isLogoutConfirmationOpen, setIsLogoutConfirmationOpen] = useState(false);
   const isAdmin = user?.perfil === 'ADMIN';
   const logo = document.documentElement.dataset.theme === 'dark' ? whiteLogo : blackLogo;
 
-  const handleLogout = () => {
+  const handleConfirmLogout = () => {
     logout();
     navigate('/login', { replace: true });
   };
@@ -49,7 +52,7 @@ export default function AdminLayout() {
             {/* Botão Sair no topo direito (mobile) */}
             <button
               type="button"
-              onClick={handleLogout}
+              onClick={() => setIsLogoutConfirmationOpen(true)}
               aria-label="Sair da plataforma"
               title="Sair"
               className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-white transition-colors hover:bg-red-700 shadow-sm shrink-0 md:hidden"
@@ -102,7 +105,7 @@ export default function AdminLayout() {
             <span className="max-w-32 truncate text-xs font-bold opacity-80 lg:block">{user?.nome}</span>
             <button
               type="button"
-              onClick={handleLogout}
+              onClick={() => setIsLogoutConfirmationOpen(true)}
               className="flex h-10 items-center justify-center gap-2 rounded-full bg-red-600 px-4 text-xs font-bold text-white transition-colors hover:bg-red-700 shadow-sm"
               title="Sair"
             >
@@ -117,6 +120,12 @@ export default function AdminLayout() {
       <main className="flex-1 bg-transparent">
         <Outlet />
       </main>
+      {isLogoutConfirmationOpen && (
+        <LogoutConfirmation
+          onCancel={() => setIsLogoutConfirmationOpen(false)}
+          onConfirm={handleConfirmLogout}
+        />
+      )}
     </div>
   );
 }
