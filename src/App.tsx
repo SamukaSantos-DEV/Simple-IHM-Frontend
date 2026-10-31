@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useEffectEvent, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
 import { AuthProvider, RequireAuth, RequireProfile } from './auth/AuthContext';
 import { useAuth } from './auth/useAuth';
 import { apiFetch } from './api';
@@ -14,18 +13,6 @@ import MaintenancePage from './components/admin/MaintenancePage';
 import FuncionariosPage from './components/admin/FuncionariosPage';
 import AuditPage from './components/admin/AuditPage';
 import { API_BASE_URL } from './config';
-
-const socket = io(API_BASE_URL, {
-  autoConnect: false,
-  transports: ['websocket', 'polling'],
-  reconnection: true,
-  reconnectionAttempts: 1,
-  reconnectionDelay: 5000,
-  timeout: 4000,
-  extraHeaders: {
-    'ngrok-skip-browser-warning': 'true',
-  },
-});
 
 interface MachineTelemetry {
   uptimeSeconds: number;
@@ -276,14 +263,13 @@ function AppContent() {
     });
   };
 
+  const applyTelemetryDataFromSocket = useEffectEvent((data: unknown) => {
+    applyTelemetryData(data);
+  });
+
   const setSelectedMachineId = async (id: number | string) => {
     setSelectedMachineIdState(id);
     selectedMachineIdRef.current = id;
-    
-    // Notifica backend se necessário via WebSocket
-    if (socket.connected) {
-      socket.emit('select_machine', { machine_id: id });
-    }
 
     // Atualiza os estados instantaneamente com os dados da máquina no map se já existirem
     if (telemetryMap[id]) {
@@ -376,7 +362,7 @@ function AppContent() {
 
     const checkApi = async () => {
       // Se o WebSocket já estiver conectado, o servidor está com sinal ativo
-      if (socket.connected) {
+      if (isSocketConnected) {
         setIsServerSignal(true);
         return;
       }
@@ -407,7 +393,7 @@ function AppContent() {
       window.clearInterval(intervalId);
       activeController?.abort();
     };
-  }, []);
+  }, [isSocketConnected]);
 
   // Loop de Simulação de Telemetria (Move os dados a cada segundo)
   useEffect(() => {
@@ -528,9 +514,9 @@ function AppContent() {
     }, 1000);
 
     return () => clearInterval(simulationInterval);
-  }, [availableMachines]);
+  }, [availableMachines, isSocketConnected]);
 
-  // Carga inicial única do servidor e conexão WebSocket para telemetria em tempo real (sem polling)
+  // Carga inicial de máquinas, status e manutenções.
   useEffect(() => {
     if (!authenticatedUserId) return;
 
@@ -624,73 +610,109 @@ function AppContent() {
 
     void fetchInitialData();
 
-    // Configuração e conexão do WebSocket em tempo real
-    const token = getAuthToken();
-    if (token) {
-      socket.auth = { token };
+  }, [authenticatedUserId]);
+
+  // A produção transmite telemetria por máquina, não pelo canal global de testes.
+  useEffect(() => {
+    if (!authenticatedUserId || selectedMachineId === null) {
+      setIsSocketConnected(false);
+      return;
     }
 
-    const handleConnect = () => {
-      console.log('WebSocket conectado com sucesso.');
-      setIsSocketConnected(true);
-      setIsServerSignal(true);
-      if (selectedMachineIdRef.current !== null) {
-        socket.emit('select_machine', { machine_id: selectedMachineIdRef.current });
-      }
+    let shouldReconnect = true;
+    let reconnectAttempts = 0;
+    let reconnectTimeout: number | undefined;
+    let connectionStartTimeout: number | undefined;
+    let activeSocket: WebSocket | null = null;
+
+    const connectWebSocket = () => {
+      if (!shouldReconnect) return;
+      const token = getAuthToken();
+      if (!token) return;
+
+      const machineId = encodeURIComponent(String(selectedMachineId));
+      const websocketUrl = new URL(`/ws/telemetria/${machineId}`, API_BASE_URL);
+      websocketUrl.protocol = websocketUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+      websocketUrl.searchParams.set('token', token);
+
+      const connection = new WebSocket(websocketUrl);
+      activeSocket = connection;
+
+      connection.onopen = () => {
+        reconnectAttempts = 0;
+        setIsSocketConnected(true);
+        setIsServerSignal(true);
+      };
+
+      connection.onmessage = (event: MessageEvent<string>) => {
+        try {
+          applyTelemetryDataFromSocket(JSON.parse(event.data));
+          setIsServerSignal(true);
+        } catch (error) {
+          console.error('Não foi possível interpretar a telemetria recebida:', error);
+        }
+      };
+
+      connection.onerror = () => {
+        setIsSocketConnected(false);
+      };
+
+      connection.onclose = (event: CloseEvent) => {
+        if (activeSocket === connection) activeSocket = null;
+        setIsSocketConnected(false);
+
+        if (event.code === 1008) {
+          shouldReconnect = false;
+          window.dispatchEvent(new Event('auth-session-expired'));
+          return;
+        }
+
+        if (shouldReconnect) {
+          const delay = Math.min(1000 * 2 ** reconnectAttempts, 30000);
+          reconnectAttempts += 1;
+          reconnectTimeout = window.setTimeout(connectWebSocket, delay);
+        }
+      };
     };
 
-    const handleDisconnect = (reason: string) => {
-      console.warn('WebSocket desconectado:', reason);
-      setIsSocketConnected(false);
-    };
-
-    const handleConnectError = (error: Error) => {
-      console.warn('WebSocket indisponível no servidor (modo HTTP ativo):', error.message);
-      setIsSocketConnected(false);
-      socket.disconnect();
-    };
-
-    socket.on('connect', handleConnect);
-    socket.on('disconnect', handleDisconnect);
-    socket.on('connect_error', handleConnectError);
-    socket.on('dashboard_update', applyTelemetryData);
-    socket.on('telemetria', applyTelemetryData);
-    socket.on('esp32_data', applyTelemetryData);
-
-    if (!socket.connected) {
-      socket.connect();
-    }
+    // O timer permite que o cleanup de verificação do StrictMode cancele a primeira montagem.
+    connectionStartTimeout = window.setTimeout(connectWebSocket, 0);
 
     // Polling de sincronização HTTP contínuo (ativo como fallback caso o WebSocket não esteja disponível)
     const syncInterval = window.setInterval(async () => {
-      if (socket.connected) return; // Elimina requisições periódicas caso o WebSocket esteja conectado
+      if (activeSocket?.readyState === WebSocket.OPEN) return; // Evita polling quando o WebSocket está ativo
 
-      const activeId = selectedMachineIdRef.current;
-      if (activeId !== null) {
-        try {
-          const resp = await apiFetch(`/status-maquinas/${activeId}`);
-          if (resp.ok) {
-            const m = await resp.json();
-            if (m) applyTelemetryData(m);
-            setIsServerSignal(true);
-          }
-        } catch {
-          // Mantém integridade sem travar
+      try {
+        const resp = await apiFetch(`/status-maquinas/${selectedMachineId}`);
+        if (resp.ok) {
+          const m = await resp.json();
+          if (m) applyTelemetryDataFromSocket(m);
+          setIsServerSignal(true);
         }
+      } catch {
+        // Mantém integridade sem travar
       }
     }, 8000);
 
     return () => {
+      shouldReconnect = false;
+      if (reconnectTimeout !== undefined) window.clearTimeout(reconnectTimeout);
+      if (connectionStartTimeout !== undefined) window.clearTimeout(connectionStartTimeout);
       window.clearInterval(syncInterval);
-      socket.off('connect', handleConnect);
-      socket.off('disconnect', handleDisconnect);
-      socket.off('connect_error', handleConnectError);
-      socket.off('dashboard_update', applyTelemetryData);
-      socket.off('telemetria', applyTelemetryData);
-      socket.off('esp32_data', applyTelemetryData);
-      socket.disconnect();
+      if (activeSocket) {
+        const socketToClose = activeSocket;
+        socketToClose.onmessage = null;
+        socketToClose.onerror = null;
+        socketToClose.onclose = null;
+        if (socketToClose.readyState === WebSocket.CONNECTING) {
+          socketToClose.onopen = () => socketToClose.close();
+        } else if (socketToClose.readyState === WebSocket.OPEN) {
+          socketToClose.onopen = null;
+          socketToClose.close();
+        }
+      }
     };
-  }, [authenticatedUserId]);
+  }, [authenticatedUserId, selectedMachineId]);
 
   return (
       <div className="min-h-screen font-sans transition-colors duration-700">
