@@ -355,10 +355,11 @@ export default function DashboardView(props: DashboardViewProps) {
                   ? 'bg-white/5 hover:bg-white/15 text-slate-200'
                   : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
               }`}
-          >
+          >ㅤㅤㅤ
             <BarChart3 size={16} className="shrink-0" />
             <span className="sm:hidden">Relatórios</span>
             <span className="hidden sm:inline">Relatórios &amp; Rankings</span>
+            ㅤㅤㅤ
           </button>
           <button
             onClick={() => setActiveTab('maintenance')}
@@ -372,7 +373,7 @@ export default function DashboardView(props: DashboardViewProps) {
           >
             <Wrench size={16} className="shrink-0" />
             <span className="sm:hidden">Manut.</span>
-            <span className="hidden sm:inline">Manutenção Preventiva</span>
+            <span className="hidden sm:inline">Manutenções</span>
             {overdueCount > 0 && (
               <span className="w-2.5 h-2.5 bg-ios-red rounded-full shadow-md shadow-ios-red/50 animate-pulse" />
             )}
