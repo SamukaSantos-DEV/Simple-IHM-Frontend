@@ -1,5 +1,7 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { Plus, Edit2, Trash2, Check, X, Calendar, Wrench, User, FileText, Loader, Bell, BrainCircuit, ShieldCheck, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { apiErrorMessage, apiFetch } from '../../api';
 import { getAuthToken, isMaintenanceEditor } from '../../auth/session';
 import { useAuth } from '../../auth/useAuth';
@@ -58,6 +60,7 @@ export default function MaintenancePage() {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [alerts, setAlerts] = useState<PredictiveAlert[]>([]);
   const [alertQueue, setAlertQueue] = useState<PredictiveAlert[]>([]);
+  const [alertsUpdatedAt, setAlertsUpdatedAt] = useState<Date | null>(null);
   const [activeSection, setActiveSection] = useState<'maintenance' | 'predictive'>('maintenance');
   const [queueFilter, setQueueFilter] = useState<'pendente' | 'todos'>('pendente');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -82,6 +85,8 @@ export default function MaintenancePage() {
   });
 
   const [completingTaskId, setCompletingTaskId] = useState<number | null>(null);
+  const previousAlertIdsRef = useRef<Set<number> | null>(null);
+  const refreshInProgressRef = useRef(false);
 
   const fetchMachines = useCallback(async () => {
     try {
@@ -120,6 +125,34 @@ export default function MaintenancePage() {
     }
   }, []);
 
+  const notifyNewAlerts = useCallback(async (newAlerts: PredictiveAlert[]) => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    try {
+      let permission = await LocalNotifications.checkPermissions();
+      if (permission.display !== 'granted') {
+        permission = await LocalNotifications.requestPermissions();
+      }
+      if (permission.display !== 'granted') {
+        setError('Permita notificações nas configurações do celular para receber alertas preditivos.');
+        return;
+      }
+
+      await LocalNotifications.schedule({
+        notifications: newAlerts.map((alert) => ({
+          id: alert.id,
+          title: `Prioridade ${alert.severidade}: alerta preditivo`,
+          body: `${alert.tag_maquina} · ${alert.mensagem}`,
+          schedule: { at: new Date(Date.now() + 1000) },
+          extra: { alertaId: alert.id, maquinaId: alert.maquina_id },
+        })),
+      });
+    } catch (error) {
+      console.error('Não foi possível enviar a notificação preditiva:', error);
+      setError('O alerta foi atualizado, mas não foi possível enviar a notificação para este celular.');
+    }
+  }, []);
+
   const fetchPredictiveData = useCallback(async () => {
     try {
       const [alertsResponse, queueResponse] = await Promise.all([
@@ -127,20 +160,50 @@ export default function MaintenancePage() {
         apiFetch(`/alertas/solicitacoes?situacao=${queueFilter === 'todos' ? 'todas' : 'pendente'}&limite=50`),
       ]);
 
-      if (alertsResponse.ok) setAlerts(await alertsResponse.json());
-      if (queueResponse.ok) setAlertQueue(await queueResponse.json());
+      if (!alertsResponse.ok) {
+        setError(await apiErrorMessage(alertsResponse, 'Não foi possível atualizar os alertas preditivos.'));
+        return;
+      }
+      if (!queueResponse.ok) {
+        setError(await apiErrorMessage(queueResponse, 'Não foi possível atualizar a fila preditiva.'));
+        return;
+      }
+
+      const currentAlerts: PredictiveAlert[] = await alertsResponse.json();
+      const currentQueue: PredictiveAlert[] = await queueResponse.json();
+      const currentIds = new Set(currentAlerts.map((alert) => alert.id));
+      const previousIds = previousAlertIdsRef.current;
+      previousAlertIdsRef.current = currentIds;
+      setAlerts(currentAlerts);
+      setAlertQueue(currentQueue);
+      setAlertsUpdatedAt(new Date());
+      setError('');
+
+      if (previousIds) {
+        const newAlerts = currentAlerts.filter((alert) => !previousIds.has(alert.id));
+        if (newAlerts.length > 0) void notifyNewAlerts(newAlerts);
+      }
     } catch (error) {
       console.error('Erro ao carregar dados preditivos:', error);
+      setError('Não foi possível atualizar os alertas preditivos.');
     }
-  }, [queueFilter]);
+  }, [notifyNewAlerts, queueFilter]);
+
+  const refreshPageData = useCallback(async () => {
+    if (refreshInProgressRef.current) return;
+    refreshInProgressRef.current = true;
+    try {
+      await Promise.all([fetchMachines(), fetchTasks(), fetchPredictiveData()]);
+    } finally {
+      refreshInProgressRef.current = false;
+    }
+  }, [fetchMachines, fetchPredictiveData, fetchTasks]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      void fetchMachines();
-      void fetchTasks();
-      void fetchPredictiveData();
+      void refreshPageData();
     }, 0);
-    const pollId = window.setInterval(() => void fetchPredictiveData(), 15000);
+    const pollId = window.setInterval(() => void refreshPageData(), 10000);
 
     const token = getAuthToken();
     let alertSocket: WebSocket | null = null;
@@ -152,9 +215,9 @@ export default function MaintenancePage() {
       alertSocket.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data);
-          if (payload?.alerta) void fetchPredictiveData();
+          if (payload?.alerta) void refreshPageData();
         } catch {
-          void fetchPredictiveData();
+          void refreshPageData();
         }
       };
     }
@@ -164,7 +227,7 @@ export default function MaintenancePage() {
       window.clearInterval(pollId);
       if (alertSocket) alertSocket.close();
     };
-  }, [fetchMachines, fetchTasks, fetchPredictiveData]);
+  }, [refreshPageData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -397,32 +460,32 @@ export default function MaintenancePage() {
           </button>}
         </div>
 
-        <div className="grid grid-cols-1 gap-3 mb-6 sm:grid-cols-3">
-          <div className="seamless-panel rounded-2xl p-5">
+        <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="seamless-panel rounded-2xl p-3 sm:p-5">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider opacity-50">Preventivas</p>
-                <p className="mt-1 text-2xl font-black">{preventiveTasks.length}</p>
+              <div className="min-w-0">
+                <p className="truncate text-[8px] font-bold uppercase tracking-wider opacity-50 sm:text-[10px]">Preventivas</p>
+                <p className="mt-1 text-xl font-black sm:text-2xl">{preventiveTasks.length}</p>
               </div>
-              <Wrench className="text-ios-blue opacity-70" size={22} />
+              <Wrench className="hidden shrink-0 text-ios-blue opacity-70 sm:block" size={22} />
             </div>
           </div>
-          <div className="seamless-panel rounded-2xl p-5">
+          <div className="seamless-panel rounded-2xl p-3 sm:p-5">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider opacity-50">Preditivas</p>
-                <p className="mt-1 text-2xl font-black">{predictiveTasks.length}</p>
+              <div className="min-w-0">
+                <p className="truncate text-[8px] font-bold uppercase tracking-wider opacity-50 sm:text-[10px]">Preditivas</p>
+                <p className="mt-1 text-xl font-black sm:text-2xl">{predictiveTasks.length}</p>
               </div>
-              <BrainCircuit className="text-violet-500 opacity-70" size={22} />
+              <BrainCircuit className="hidden shrink-0 text-violet-500 opacity-70 sm:block" size={22} />
             </div>
           </div>
-          <div className="seamless-panel rounded-2xl p-5">
+          <div className="seamless-panel rounded-2xl p-3 sm:p-5">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider opacity-50">Alertas abertos</p>
-                <p className="mt-1 text-2xl font-black">{alerts.length}</p>
+              <div className="min-w-0">
+                <p className="truncate text-[8px] font-bold uppercase tracking-wider opacity-50 sm:text-[10px]">Alertas abertos</p>
+                <p className="mt-1 text-xl font-black sm:text-2xl">{alerts.length}</p>
               </div>
-              <Bell className="text-ios-orange opacity-70" size={22} />
+              <Bell className="hidden shrink-0 text-ios-orange opacity-70 sm:block" size={22} />
             </div>
           </div>
         </div>
@@ -471,6 +534,9 @@ export default function MaintenancePage() {
                 <div>
                   <h2 className="text-lg font-bold">Fila de aprovação</h2>
                   <p className="mt-1 text-xs opacity-60">A IA sugere. ADMIN ou MANUTENÇÃO decide.</p>
+                  <p className="mt-1 text-[10px] opacity-50" aria-live="polite">
+                    Última atualização dos alertas: {alertsUpdatedAt ? alertsUpdatedAt.toLocaleTimeString('pt-BR') : 'carregando...'}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="predictive-filter-shell">
@@ -512,12 +578,12 @@ export default function MaintenancePage() {
                           </span>
                           <h3 className="mt-1.5 font-bold">{getDiagnosisLabel(alert.diagnostico)}</h3>
                         </div>
-                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${
-                          alert.severidade === 'alta' ? 'border-red-400/50 bg-red-500/15 text-red-600 dark:text-red-300'
-                            : alert.severidade === 'media' ? 'border-orange-400/50 bg-orange-500/15 text-orange-600 dark:text-orange-300'
-                            : 'border-blue-400/50 bg-blue-500/15 text-blue-600 dark:text-blue-300'
+                        <span className={`whitespace-nowrap text-[11px] font-bold ${
+                          alert.severidade === 'alta' ? 'text-red-600 dark:text-red-300'
+                            : alert.severidade === 'media' ? 'text-orange-600 dark:text-orange-300'
+                            : 'text-blue-600 dark:text-blue-300'
                         }`}>
-                          {alert.severidade}
+                          Prioridade: {alert.severidade.charAt(0).toUpperCase() + alert.severidade.slice(1)}
                         </span>
                       </div>
 
