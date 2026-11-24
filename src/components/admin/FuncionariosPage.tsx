@@ -318,10 +318,6 @@ export default function FuncionariosPage() {
                           </span>
                         </div>
                       </div>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border whitespace-nowrap
-                        ${func.ativo ? 'bg-green-500/20 text-green-700 dark:text-green-300 border-green-400/50' : 'bg-gray-500/20 text-gray-700 dark:text-gray-300 border-gray-400/50'}`}>
-                        {func.ativo ? 'Ativo' : 'Inativo'}
-                      </span>
                     </div>
 
                     <div className="flex flex-col gap-1.5 text-xs opacity-75 border-t border-black/5 dark:border-white/5 pt-3 mb-4">

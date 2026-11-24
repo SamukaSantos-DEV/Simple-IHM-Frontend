@@ -1,5 +1,5 @@
 import { useCallback, useState, useEffect, useRef } from 'react';
-import { Plus, Edit2, Trash2, Check, X, Calendar, Wrench, User, FileText, Loader, Bell, BrainCircuit, ShieldCheck, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Plus, Edit2, Trash2, Check, X, Wrench, Loader, BrainCircuit, ShieldCheck, RefreshCw } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { apiErrorMessage, apiFetch } from '../../api';
@@ -406,14 +406,10 @@ export default function MaintenancePage() {
   };
 
   const getStatusBadge = (concluida: boolean, dataAgendada: string) => {
-    if (concluida) {
-      return 'bg-green-500/20 text-green-600 border-green-400/50';
-    }
+    if (concluida) return 'text-green-600 dark:text-green-400';
     const isOverdue = new Date(dataAgendada) < new Date(new Date().setHours(0,0,0,0));
-    if (isOverdue) {
-      return 'bg-red-500/20 text-red-600 border-red-400/50';
-    }
-    return 'bg-yellow-500/20 text-yellow-600 border-yellow-400/50';
+    if (isOverdue) return 'text-red-600 dark:text-red-400';
+    return 'text-amber-700 dark:text-amber-300';
   };
 
   const getStatusLabel = (concluida: boolean, dataAgendada: string) => {
@@ -464,28 +460,25 @@ export default function MaintenancePage() {
           <div className="seamless-panel rounded-2xl p-3 sm:p-5">
             <div className="flex items-center justify-between">
               <div className="min-w-0">
-                <p className="truncate text-[8px] font-bold uppercase tracking-wider opacity-50 sm:text-[10px]">Preventivas</p>
-                <p className="mt-1 text-xl font-black sm:text-2xl">{preventiveTasks.length}</p>
+                <p className="truncate text-[9px] font-semibold tracking-wide opacity-60 sm:text-[11px]">Preventivas</p>
+                <p className="mt-1 text-2xl font-bold sm:text-3xl">{preventiveTasks.length}</p>
               </div>
-              <Wrench className="hidden shrink-0 text-ios-blue opacity-70 sm:block" size={22} />
             </div>
           </div>
           <div className="seamless-panel rounded-2xl p-3 sm:p-5">
             <div className="flex items-center justify-between">
               <div className="min-w-0">
-                <p className="truncate text-[8px] font-bold uppercase tracking-wider opacity-50 sm:text-[10px]">Preditivas</p>
-                <p className="mt-1 text-xl font-black sm:text-2xl">{predictiveTasks.length}</p>
+                <p className="truncate text-[9px] font-semibold tracking-wide opacity-60 sm:text-[11px]">Preditivas</p>
+                <p className="mt-1 text-2xl font-bold sm:text-3xl">{predictiveTasks.length}</p>
               </div>
-              <BrainCircuit className="hidden shrink-0 text-violet-500 opacity-70 sm:block" size={22} />
             </div>
           </div>
           <div className="seamless-panel rounded-2xl p-3 sm:p-5">
             <div className="flex items-center justify-between">
               <div className="min-w-0">
-                <p className="truncate text-[8px] font-bold uppercase tracking-wider opacity-50 sm:text-[10px]">Alertas abertos</p>
-                <p className="mt-1 text-xl font-black sm:text-2xl">{alerts.length}</p>
+                <p className="truncate text-[9px] font-semibold tracking-wide opacity-60 sm:text-[11px]">Alertas abertos</p>
+                <p className="mt-1 text-2xl font-bold sm:text-3xl">{alerts.length}</p>
               </div>
-              <Bell className="hidden shrink-0 text-ios-orange opacity-70 sm:block" size={22} />
             </div>
           </div>
         </div>
@@ -563,7 +556,7 @@ export default function MaintenancePage() {
 
               {alertQueue.length === 0 ? (
                 <div className="py-10 text-center">
-                  <ShieldCheck className="mx-auto mb-3 text-ios-green" size={34} />
+                  <ShieldCheck className="mx-auto mb-3 text-slate-400" size={34} />
                   <p className="text-sm font-bold">Nenhuma solicitação nesta fila</p>
                   <p className="mt-1 text-xs opacity-60">Novos alertas aparecerão aqui automaticamente.</p>
                 </div>
@@ -578,11 +571,7 @@ export default function MaintenancePage() {
                           </span>
                           <h3 className="mt-1.5 font-bold">{getDiagnosisLabel(alert.diagnostico)}</h3>
                         </div>
-                        <span className={`whitespace-nowrap text-[11px] font-bold ${
-                          alert.severidade === 'alta' ? 'text-red-600 dark:text-red-300'
-                            : alert.severidade === 'media' ? 'text-orange-600 dark:text-orange-300'
-                            : 'text-blue-600 dark:text-blue-300'
-                        }`}>
+                        <span className="whitespace-nowrap pt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
                           Prioridade: {alert.severidade.charAt(0).toUpperCase() + alert.severidade.slice(1)}
                         </span>
                       </div>
@@ -616,18 +605,18 @@ export default function MaintenancePage() {
 
                       {alert.manutencao_status === 'pendente' && canEdit ? (
                         <div className="mt-4 flex gap-2 border-t border-black/5 pt-4 dark:border-white/5">
-                          <button type="button" onClick={() => openApproveModal(alert)} className="flex flex-1 items-center justify-center gap-2 rounded-full bg-ios-green px-4 py-2.5 text-xs font-bold text-white">
+                          <button type="button" onClick={() => openApproveModal(alert)} className="flex flex-1 items-center justify-center gap-2 rounded-full bg-black/5 px-4 py-2.5 text-xs font-semibold transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15">
                             <Check size={15} /> Aprovar
                           </button>
-                          <button type="button" onClick={() => openRejectModal(alert)} className="flex flex-1 items-center justify-center gap-2 rounded-full bg-ios-red/10 px-4 py-2.5 text-xs font-bold text-ios-red">
+                          <button type="button" onClick={() => openRejectModal(alert)} className="flex flex-1 items-center justify-center gap-2 rounded-full border border-black/10 px-4 py-2.5 text-xs font-semibold opacity-75 transition-colors hover:bg-black/5 hover:opacity-100 dark:border-white/10 dark:hover:bg-white/5">
                             <X size={15} /> Rejeitar
                           </button>
                         </div>
                       ) : (
                         <div className="mt-4 border-t border-black/5 pt-3 text-xs dark:border-white/5">
-                          {alert.manutencao_status === 'aprovada' && <span className="font-bold text-ios-green">Aprovada por {alert.analisado_por_nome || 'um técnico'}</span>}
+                          {alert.manutencao_status === 'aprovada' && <span className="font-medium opacity-70">Aprovada por {alert.analisado_por_nome || 'um técnico'}</span>}
                           {alert.manutencao_status === 'rejeitada' && (
-                            <span className="font-bold text-ios-red">Rejeitada: {alert.analise_observacao || 'sem observação'}</span>
+                            <span className="font-medium opacity-70">Rejeitada: {alert.analise_observacao || 'sem observação'}</span>
                           )}
                         </div>
                       )}
@@ -647,7 +636,9 @@ export default function MaintenancePage() {
                         <p className="truncate text-xs font-bold">{alert.tag_maquina} · {getDiagnosisLabel(alert.diagnostico)}</p>
                         <p className="mt-0.5 truncate text-[11px] opacity-60">{alert.mensagem}</p>
                       </div>
-                      <AlertTriangle className={alert.severidade === 'alta' ? 'text-ios-red' : 'text-ios-orange'} size={18} />
+                      <span className="shrink-0 text-[11px] font-medium opacity-60">
+                        Prioridade: {alert.severidade.charAt(0).toUpperCase() + alert.severidade.slice(1)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -723,7 +714,7 @@ export default function MaintenancePage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-ios-green hover:bg-ios-green/90 text-white rounded-full font-bold transition-all disabled:opacity-50 cursor-pointer"
+                  className="flex items-center gap-2 rounded-full bg-black/5 px-6 py-2.5 text-sm font-semibold transition-colors hover:bg-black/10 disabled:opacity-50 dark:bg-white/10 dark:hover:bg-white/15"
                 >
                   <Check size={18} />
                   {editingId ? 'Atualizar' : 'Agendar'}
@@ -764,41 +755,40 @@ export default function MaintenancePage() {
               {tasks.map((task) => (
                 <div
                   key={task.id}
-                  className={`border border-black/10 dark:border-white/10 rounded-xl p-6 transition-all flex flex-col justify-between hover:bg-black/5 dark:hover:bg-white/5
-                    ${task.concluida ? 'opacity-70' : ''}`}
+                  className="flex flex-col justify-between rounded-xl border border-black/10 bg-white/60 p-5 transition-colors hover:bg-white/80 dark:border-white/10 dark:bg-white/[0.035] dark:hover:bg-white/[0.06] sm:p-6"
                 >
                   <div>
                     <div className="flex justify-between items-start mb-3 gap-2">
                       <div className="flex-1">
-                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-black/5 dark:bg-white/10 rounded-md text-ios-blue">
-                          {task.tag_maquina || `M-${task.maquina_id}`} - {task.nome_maquina}
-                        </span>
-                        <h3 className="font-bold text-lg mt-1.5">{task.descricao_servico}</h3>
+                        <p className="text-xs font-medium opacity-60">
+                          {task.tag_maquina || `M-${task.maquina_id}`} <span className="px-1">·</span> {task.nome_maquina}
+                        </p>
+                        <h3 className="mt-1.5 text-base font-semibold leading-snug">{task.descricao_servico}</h3>
                       </div>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border whitespace-nowrap ${getStatusBadge(task.concluida, task.data_agendada)}`}>
+                      <span className={`shrink-0 pt-0.5 text-[11px] font-medium ${getStatusBadge(task.concluida, task.data_agendada)}`}>
                         {getStatusLabel(task.concluida, task.data_agendada)}
                       </span>
                     </div>
 
-                    <div className="flex flex-col gap-1.5 text-xs opacity-65 mb-4 border-t border-black/5 dark:border-white/5 pt-3">
+                    <div className="mb-4 flex flex-col gap-2 border-t border-black/5 pt-3 text-xs opacity-80 dark:border-white/5">
                       <div className="flex items-center gap-2">
-                        <Calendar size={14} />
-                        <span>Agendado para: <strong>{new Date(task.data_agendada).toLocaleDateString('pt-BR')}</strong></span>
+                        <span className="opacity-60">Agendada</span>
+                        <strong className="font-medium">{new Date(task.data_agendada).toLocaleDateString('pt-BR')}</strong>
                       </div>
                       <div className="flex items-center gap-2">
-                        <FileText size={14} />
-                        <span>Tipo: <strong>{task.tipo_manutencao}</strong></span>
+                        <span className="opacity-60">Tipo</span>
+                        <strong className="font-medium">{task.tipo_manutencao}</strong>
                       </div>
                       {task.concluida && (
                         <>
-                          <div className="flex items-center gap-2 text-ios-green font-semibold">
-                            <Check size={14} />
-                            <span>Conclusão: {task.data_conclusao_real ? new Date(task.data_conclusao_real).toLocaleDateString('pt-BR') : ''}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="opacity-60">Concluída</span>
+                            <strong className="font-medium">{task.data_conclusao_real ? new Date(task.data_conclusao_real).toLocaleDateString('pt-BR') : 'Sim'}</strong>
                           </div>
                           {task.nome_funcionario && (
                             <div className="flex items-center gap-2">
-                              <User size={14} />
-                              <span>Realizado por: <strong>{task.nome_funcionario}</strong></span>
+                              <span className="opacity-60">Responsável</span>
+                              <strong className="font-medium">{task.nome_funcionario}</strong>
                             </div>
                           )}
                         </>
@@ -806,32 +796,27 @@ export default function MaintenancePage() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 justify-between items-center mt-2 border-t border-black/5 dark:border-white/5 pt-3">
+                  <div className="mt-2 flex items-center justify-between gap-2 border-t border-black/5 pt-3 dark:border-white/5">
                     {canEdit && !task.concluida ? (
                       <label 
                         onClick={() => task.id && handleOpenCompleteModal(task.id)}
-                        className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold opacity-80 hover:opacity-100 transition-opacity"
+                        className="flex cursor-pointer select-none items-center gap-2 text-xs font-medium opacity-75 transition-opacity hover:opacity-100"
                       >
                         <input
                           type="checkbox"
                           checked={false}
                           readOnly
-                          className="w-4 h-4 rounded text-ios-green focus:ring-0 border-black/20 dark:border-white/20 cursor-pointer"
+                          className="h-4 w-4 cursor-pointer rounded border-black/20 accent-ios-green focus:ring-0 dark:border-white/20"
                         />
-                        <span>Concluir Manutenção</span>
+                        <span>Concluir manutenção</span>
                       </label>
-                    ) : task.concluida ? (
-                      <span className="text-xs font-bold text-ios-green flex items-center gap-1 select-none">
-                        <Check size={14} />
-                        Concluída
-                      </span>
                     ) : <span />}
 
                     {canEdit && <div className="flex gap-1">
                       {!task.concluida && (
                         <button
                           onClick={() => handleEdit(task)}
-                          className="p-2 hover:bg-ios-blue/20 rounded-lg transition-all text-ios-blue cursor-pointer"
+                          className="cursor-pointer rounded-lg p-2 opacity-60 transition-all hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10"
                           title="Editar"
                         >
                           <Edit2 size={15} />
@@ -839,7 +824,7 @@ export default function MaintenancePage() {
                       )}
                       <button
                         onClick={() => task.id && handleDelete(task.id)}
-                        className="p-2 hover:bg-ios-red/20 rounded-lg transition-all text-ios-red cursor-pointer"
+                        className="cursor-pointer rounded-lg p-2 opacity-60 transition-all hover:bg-ios-red/10 hover:text-ios-red hover:opacity-100"
                         title="Deletar"
                       >
                         <Trash2 size={15} />
